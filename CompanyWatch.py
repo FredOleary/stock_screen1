@@ -1,4 +1,4 @@
-class CompanyWatch():
+class CompanyWatch:
     """ Declares the companies to be watched """
     def __init__(self):
         self.company_list = [

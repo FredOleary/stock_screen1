@@ -19,6 +19,13 @@ class Charts():
         plt.pause(0.00001)
         plt.show()
 
+    def plot_min_max(self, row: int, column: int, time_series: [], data: [], color: str, label: str) -> object:
+        self.axes[row][column].plot(time_series, data, color, label=label)
+        self.axes[row][column].legend(loc='best')
+        plt.ion()
+        plt.pause(0.00001)
+        plt.show()
+
 # def show_ica_charts():
 #     (red_input, green_input) = read_input("icainput.txt")
 #     (red_output, green_output) = read_output("icaoutput.txt")

@@ -19,7 +19,7 @@ import pytz
 import pickle
 
 
-class FinanceWeb():
+class FinanceWeb:
     """ Class for retreiving stock quotes and news """
     # Note that alphavantage resstricts API access for free versions to 5 calls/min, max 500 calls per day
     save_to_file = False
