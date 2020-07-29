@@ -7,10 +7,11 @@ class Charts():
         self.axes = None
         self.fig = None
 
-    def create_chart(self, rows: int, columns: int) -> object:
+    def create_chart(self, rows: int, columns: int, title: str) -> object:
         fig, axes = plt.subplots(rows, columns)
         self.axes = axes
         self.fig = fig
+        fig.suptitle(title, fontsize=14)
 
     def plot_data_time_series(self, row: int, column: int, time_series: [], data: [], color: object, label: str) -> object:
         self.axes[row][column].plot(time_series, data, label=label, color=color)

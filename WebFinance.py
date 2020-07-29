@@ -17,7 +17,7 @@ from dateutil import parser
 from tzlocal import get_localzone
 import pytz
 import pickle
-
+import yfinance as yf
 
 class FinanceWeb:
     """ Class for retreiving stock quotes and news """
@@ -51,6 +51,58 @@ class FinanceWeb:
     def get_quotes_for_stock_series(self, stock_ticker):
         """ Return day series prices from alphavantage. """
         quotes = []
+        if self.read_from_file is False:
+            url = "https://www.alphavantage.co/query?function=TIME_SERIES_DAILY" + \
+                  "&symbol=" + stock_ticker + "&outputsize=compact" + \
+                  "&apikey=M8KGCPCGZQSJJO3V"
+            response = urllib.request.urlopen(url)
+            result = response.read()
+            str_result = result.decode("utf-8")
+            python_obj = json.loads(str_result)
+            if "Time Series (Daily)" in python_obj:
+                for key, value in python_obj["Time Series (Daily)"].items():
+                    date = parser.parse(key)
+                    quotes.append({"date": date,
+                                   "open": float(value["1. open"]),
+                                   "high": float(value["2. high"]),
+                                   "low": float(value["3. low"]),
+                                   "close": float(value["4. close"])})
+
+                    if self.save_to_file is True:
+                        self.save_in_file(stock_ticker, quotes)
+
+            else:
+                logging.error("Cannot get quotes for: " + stock_ticker)
+        else:
+            quotes = self.read_file(stock_ticker)
+        return quotes
+
+    def get_quotes_for_stock_series_yahoo(self, stock_ticker):
+        """ Return day series prices from yahoo finance. """
+        quotes = []
+        if self.read_from_file is False:
+            ticker = yf.Ticker(stock_ticker)
+            hist = ticker.history(period="ytd")
+
+            if "Close" in hist:
+                for i in range(len(hist.Close)):
+                    close_date = datetime.combine(hist.Close.axes[0].date[i], datetime.min.time())
+
+                    quotes.append({"date": close_date,
+                                   "open": hist.Open[i],
+                                   "high": hist.High[i],
+                                   "low": hist.Low[i],
+                                   "close": hist.Close[i]})
+
+                    if self.save_to_file is True:
+                        self.save_in_file(stock_ticker, quotes)
+
+            else:
+                logging.error("Cannot get quotes for: " + stock_ticker)
+        else:
+            quotes = self.read_file(stock_ticker)
+        return quotes
+
         if self.read_from_file is False:
             url = "https://www.alphavantage.co/query?function=TIME_SERIES_DAILY" + \
                   "&symbol=" + stock_ticker + "&outputsize=compact" + \
