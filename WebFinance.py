@@ -12,12 +12,14 @@ import urllib.request
 import json
 import logging
 from datetime import datetime
+from datetime import timedelta
 import demjson
 from dateutil import parser
 from tzlocal import get_localzone
 import pytz
 import pickle
 import yfinance as yf
+import pandas
 
 class FinanceWeb:
     """ Class for retreiving stock quotes and news """
@@ -103,31 +105,7 @@ class FinanceWeb:
             quotes = self.read_file(stock_ticker)
         return quotes
 
-        if self.read_from_file is False:
-            url = "https://www.alphavantage.co/query?function=TIME_SERIES_DAILY" + \
-                  "&symbol=" + stock_ticker + "&outputsize=compact" + \
-                  "&apikey=M8KGCPCGZQSJJO3V"
-            response = urllib.request.urlopen(url)
-            result = response.read()
-            str_result = result.decode("utf-8")
-            python_obj = json.loads(str_result)
-            if "Time Series (Daily)" in python_obj:
-                for key, value in python_obj["Time Series (Daily)"].items():
-                    date = parser.parse(key)
-                    quotes.append({"date": date,
-                                   "open": float(value["1. open"]),
-                                   "high": float(value["2. high"]),
-                                   "low": float(value["3. low"]),
-                                   "close": float(value["4. close"])})
 
-                    if self.save_to_file is True:
-                        self.save_in_file(stock_ticker, quotes)
-
-            else:
-                logging.error("Cannot get quotes for: " + stock_ticker)
-        else:
-            quotes = self.read_file(stock_ticker)
-        return quotes
 
     def read_file(self, stock_ticker):
         with open(stock_ticker + "_file.pkl", 'rb') as f:
@@ -193,3 +171,72 @@ class FinanceWeb:
             print("Exception ", err.code)
             logging.error(err.code)
             return news
+
+    def get_options_for_stock_series_yahoo(self, stock_ticker):
+        """ Return options chain prices from yahoo finance.
+        This method returns monthly options chains for option strike prices 'around' the money
+        """
+        options = []
+        try:
+            ticker = yf.Ticker(stock_ticker)
+            history = ticker.history(period="1d", interval="1m")
+            current_value = history.Close[len(history.Close)-1]
+            current_pd_time = history.axes[0][len(history.axes[0])-1]
+            current_time = current_pd_time.to_pydatetime()
+            for expire_date in ticker.options:
+                (is_third_friday, date, date_time) = self.is_third_friday(expire_date)
+                if is_third_friday is True:
+                    options_obj = ticker.option_chain(expire_date)
+                    filtered_options = self.filter_to_at_the_money(options_obj)
+                    return_options = {'ticker': stock_ticker,
+                                      'current_value': current_value,
+                                      'current_time': current_time,
+                                      'expire_date': date_time,
+                                      'options_chain': filtered_options}
+                    options.append(return_options)
+                    return options
+        except Exception as err:
+            print("Exception ", err.code)
+            logging.error(err.code)
+
+        return options
+
+    def is_third_friday(self, time_str: str) -> (bool, str, datetime):
+        """
+        :rtype: (bool, str)
+        """
+        d = datetime.strptime(time_str, '%Y-%m-%d')  # Eg "2020-10-08"
+        # Note - day is actually d-1 (no idea why)
+        d = d + timedelta(days=1)
+
+        if d.weekday() == 4 and 15 <= d.day <= 21:
+            return True, time_str, d
+        else:
+            return False, time_str, d
+
+    def filter_to_at_the_money(self, options_obj: any) -> any:
+        calls = self.filter_to_the_money_puts_and_calls( options_obj.calls, True)
+        puts = self.filter_to_the_money_puts_and_calls(options_obj.puts, False)
+        return {'calls':calls ,'puts':puts}
+
+    def filter_to_the_money_puts_and_calls(self, df: pandas.core.frame.DataFrame, is_call: bool) -> pandas.core.frame.DataFrame:
+        start_index = 0
+        end_index = len(df)
+        current_index = 0
+        found_transition = False
+        transition = True
+        if is_call: transition = False
+        for index, row in df.iterrows():
+            if found_transition :
+                if current_index - 10 > 0:
+                    start_index = current_index - 10
+                if current_index + 10 < end_index:
+                    end_index = current_index + 10
+                return df.iloc[start_index:end_index]
+
+            else:
+                if row["inTheMoney"] == transition:
+                    found_transition = True
+                else:
+                    current_index +=1
+        return df
