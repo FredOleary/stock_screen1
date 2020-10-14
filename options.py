@@ -45,7 +45,7 @@ def process_options():
     for company in companies.get_companies():
         options = web.get_options_for_stock_series_yahoo(company["symbol"])
         if len(options) > 0:
-            options_db.add_option_quote(options[0])
+            options_db.add_option_quote(options)
             # quote_map = map(lambda x: x['close'], options)
             # quote_list = list(quote_map)
             # time_series = list(map(lambda x: x['date'], options))

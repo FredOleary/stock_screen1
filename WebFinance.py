@@ -13,6 +13,7 @@ import json
 import logging
 from datetime import datetime
 from datetime import timedelta
+from datetime import timezone
 import demjson
 from dateutil import parser
 from tzlocal import get_localzone
@@ -183,6 +184,7 @@ class FinanceWeb:
             current_value = history.Close[len(history.Close)-1]
             current_pd_time = history.axes[0][len(history.axes[0])-1]
             current_time = current_pd_time.to_pydatetime()
+            current_time = current_time.astimezone(timezone.utc)
             for expire_date in ticker.options:
                 (is_third_friday, date, date_time) = self.is_third_friday(expire_date)
                 if is_third_friday is True:
@@ -194,7 +196,7 @@ class FinanceWeb:
                                       'expire_date': date_time,
                                       'options_chain': filtered_options}
                     options.append(return_options)
-                    return options
+
         except Exception as err:
             print("Exception ", err.code)
             logging.error(err.code)
@@ -210,9 +212,11 @@ class FinanceWeb:
         d = d + timedelta(days=1)
 
         if d.weekday() == 4 and 15 <= d.day <= 21:
-            return True, time_str, d
-        else:
-            return False, time_str, d
+            # Also check that expiration date isn't more than 60 days out
+            days_diff = d - datetime.now()
+            if days_diff.days < 60:
+                return True, time_str, d
+        return False, time_str, d
 
     def filter_to_at_the_money(self, options_obj: any) -> any:
         calls = self.filter_to_the_money_puts_and_calls( options_obj.calls, True)
