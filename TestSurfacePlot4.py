@@ -37,14 +37,16 @@ date_array = mdates.date2num(date_array)
 xs = np.asarray(date_array)
 #xs = np.arange(0, 10, 0.4)
 verts = []
-zs = [0.0, 1.0, 2.0, 3.0, 4.0]
+# zs = [0.0, 1.0, 2.0, 3.0, 4.0, 5]
+zs = [271, 272, 273, 274, 275, 276]
+
 for z in zs:
     ys = np.random.rand(len(xs))
     ys[0], ys[-1] = 0, 0
     verts.append(list(zip(xs, ys)))
 
-poly = PolyCollection(verts, facecolors=[cc('r'), cc('g'), cc('b'),
-                                         cc('y'), cc('b')])
+poly = PolyCollection(verts, facecolors=[(1.0,0.5,0.5, 0.5), (0.9,0.5,0.5, 0.5), (0.8,0.5,0.5, 0.5),
+                                         cc('y'), cc('b'), cc('y')])
 poly.set_alpha(0.7)
 ax.add_collection3d(poly, zs=zs, zdir='y')
 
@@ -54,7 +56,7 @@ ax.xaxis.set_major_formatter(date_format)
 ax.set_xlabel('Date/Time')
 ax.set_xlim3d(xs[0], xs[len(xs)-1])
 ax.set_ylabel('Z')
-ax.set_ylim3d(0, 4)
+ax.set_ylim3d(271, 276)
 ax.set_zlabel('Y')
 ax.set_zlim3d(0, 1)
 
