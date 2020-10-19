@@ -6,7 +6,8 @@ Created on Tue Aug  8 19:35:54 2017
 @author: fredoleary
 """
 import sqlite3
-
+import numpy as np
+import pandas as pd
 
 class FinanceDB():
     """ Storage for news/prices etc """
@@ -25,14 +26,14 @@ class FinanceDB():
                         "create_sql": """ CREATE TABLE IF NOT EXISTS option_expire (
                                         option_expire_id INTEGER PRIMARY KEY AUTOINCREMENT,
                                         symbol TEXT,
-                                        expire_date DATETIME NOT NULL,
+                                        expire_date TIMESTAMP NOT NULL,
                                         UNIQUE( symbol, expire_date)
                                     ); """},
                        {"name": "stock_price",
                         "create_sql": """ CREATE TABLE IF NOT EXISTS stock_price (
                                         stock_price_id INTEGER PRIMARY KEY AUTOINCREMENT,
                                         symbol TEXT,
-                                        time DATETIME NOT NULL,
+                                        time TIMESTAMP NOT NULL,
                                         price REAL NOT NULL,
                                         option_expire_id INTEGER,
                                         UNIQUE( symbol, time, option_expire_id),
@@ -47,7 +48,7 @@ class FinanceDB():
                             call_option_price_id INTEGER PRIMARY KEY AUTOINCREMENT,
                             stock_price_id INTEGER, 
                             put_call TEXT NOT NULL,
-                            lastTradeDate DATETIME NOT NULL,
+                            lastTradeDate TIMESTAMP NOT NULL,
                             strike REAL NOT NULL,
                             lastPrice REAL,
                             bid REAL,
@@ -179,6 +180,40 @@ class FinanceDB():
 
         rows = cursor.fetchall()
         return rows
+
+    # def get_date_times_for_expiration(self, symbol, option_expire_id):
+    #     cursor = self.connection.cursor()
+    #
+    #     cursor.execute("SELECT * FROM stock_price where symbol = ? AND option_expire_id = ?",
+    #                [symbol, option_expire_id])
+    #     rows = cursor.fetchall()
+    #     self.get_date_times_for_expiration_df(symbol, option_expire_id)
+    #     return rows
+
+    def get_date_times_for_expiration_df(self, symbol, option_expire_id) ->pd.DataFrame:
+        cursor = self.connection.cursor()
+
+        cursor.execute("SELECT * FROM stock_price where symbol = ? AND option_expire_id = ?",
+                   [symbol, option_expire_id])
+        rows = cursor.fetchall()
+        np_rows = np.array(rows)
+        df_data = np_rows[:,[0, 2, 3]]      # stock_price_id, DateTime and stock price
+        df_column_values = ["stock_price_id", "datetime", "price"]
+        df = pd.DataFrame(data=df_data, columns=df_column_values)
+        return df
+
+    def get_unique_strikes_for_expiration(self, option_expire_id, put_call=None):
+        cursor = self.connection.cursor()
+        if put_call is None:
+            cursor.execute("SELECT distinct strike FROM put_call_options where option_expire_id = ? ORDER BY strike",
+                           [option_expire_id])
+        else:
+            cursor.execute("SELECT distinct strike FROM put_call_options where option_expire_id = ? AND put_call = ?"
+                           "ORDER BY strike",
+                           [option_expire_id, put_call])
+        rows = cursor.fetchall()
+        return rows
+
 
     def _create_verify_tables(self):
         # Get a list of all tables

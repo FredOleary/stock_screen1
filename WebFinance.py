@@ -185,6 +185,7 @@ class FinanceWeb:
             current_pd_time = history.axes[0][len(history.axes[0])-1]
             current_time = current_pd_time.to_pydatetime()
             current_time = current_time.astimezone(timezone.utc)
+            current_time = current_time.replace(tzinfo=None)    # Want UTC with NO timezone info
             for expire_date in ticker.options:
                 (is_third_friday, date, date_time) = self.is_third_friday(expire_date)
                 if is_third_friday is True:
