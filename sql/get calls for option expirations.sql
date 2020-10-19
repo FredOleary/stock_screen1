@@ -1,0 +1,1 @@
+SELECT * FROM put_call_options where option_expire_id = 1 AND put_call = 'CALL'

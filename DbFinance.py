@@ -1,15 +1,17 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Tue Aug  8 19:35:54 2017
+Created on Tue October  8 19:35:54 2020
 
-@author: fredoleary
+@author: fred OLeary
 """
 import sqlite3
 import numpy as np
 import pandas as pd
 
-class FinanceDB():
+
+# noinspection PyMethodMayBeStatic
+class FinanceDB:
     """ Storage for news/prices etc """
 
     def __init__(self, stock_data=None):
@@ -59,6 +61,7 @@ class FinanceDB():
                             impliedVolatility REAL NOT NULL,
                             inTheMoney TEXT NOT NULL,
                             option_expire_id INTEGER,
+                            current_value REAL NOT NULL,
                             UNIQUE( stock_price_id, put_call, strike),
                             CONSTRAINT fk_stock_price
                                 FOREIGN KEY (stock_price_id)
@@ -68,11 +71,11 @@ class FinanceDB():
                                 REFERENCES option_expire(option_expire_id)
 
                       ); """}
-                    ]
+                       ]
 
     def initialize(self):
         """ Initialize database connection and tables """
-        self.connection = sqlite3.connect(self.db_name, \
+        self.connection = sqlite3.connect(self.db_name,
                                           detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES)
         if self.stock_data:
             self._create_verify_tables()
@@ -83,7 +86,7 @@ class FinanceDB():
         if self.connection is not None:
             self.connection.close()
 
-    def add_option_quote(self, quotes: object) -> int:
+    def add_option_quote(self, quotes: list) -> int:
         if len(quotes) > 0:
             try:
                 for quote in quotes:
@@ -102,18 +105,21 @@ class FinanceDB():
                                    [quote["ticker"], quote["current_time"], option_expire_id])
                     rows = cursor.fetchall()
                     if not rows:  # empty - record does not exist
-                        cursor.execute("INSERT INTO stock_price(symbol, time, price, option_expire_id) VALUES (?,?,?,?)",
-                                       (quote["ticker"],
-                                        quote["current_time"],
-                                        quote["current_value"],
-                                        option_expire_id))
+                        cursor.execute(
+                            "INSERT INTO stock_price(symbol, time, price, option_expire_id) VALUES (?,?,?,?)",
+                            (quote["ticker"],
+                             quote["current_time"],
+                             quote["current_value"],
+                             option_expire_id))
 
                         rowid = cursor.lastrowid
                     else:
                         rowid = rows[0][0]  # Existing rowid
                     if rowid != -1:
-                        self.insert_put_call(cursor, True, rowid, quote['options_chain']['calls'], option_expire_id)
-                        self.insert_put_call(cursor, False, rowid, quote['options_chain']['puts'], option_expire_id)
+                        self.insert_put_call(cursor, True, rowid, quote['options_chain']['calls'], option_expire_id,
+                                             quote["current_value"])
+                        self.insert_put_call(cursor, False, rowid, quote['options_chain']['puts'], option_expire_id,
+                                             quote["current_value"])
 
                 self.connection.commit()
                 # print("value added for time: ", quote["time"])
@@ -122,16 +128,18 @@ class FinanceDB():
                 return 0
                 # print("value already added for time: ", quote["time"])
 
-    def insert_put_call(self, cursor: object, is_call: str, rowid: int,
-                        put_call_options_chain: object, option_expire_id: int):
+    def insert_put_call(self, cursor: sqlite3.Cursor, is_call: bool, rowid: int,
+                        put_call_options_chain: pd.DataFrame, option_expire_id: int, current_value: float):
         for index, option in put_call_options_chain.iterrows():
             put_call = "PUT"
-            if is_call: put_call = "CALL"
+            if is_call:
+                put_call = "CALL"
             try:
                 cursor.execute("INSERT INTO put_call_options("
                                "stock_price_id, put_call, lastTradeDate, strike, lastPrice, bid, ask, "
-                               "change, volume, openInterest, impliedVolatility, inTheMoney, option_expire_id) "
-                               "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                               "change, volume, openInterest, impliedVolatility, inTheMoney, "
+                               "option_expire_id, current_value) "
+                               "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                                (
                                    rowid,
                                    put_call,
@@ -145,29 +153,37 @@ class FinanceDB():
                                    option["openInterest"],
                                    option["impliedVolatility"],
                                    ("FALSE", "TRUE")[option["inTheMoney"]],
-                                   option_expire_id
+                                   option_expire_id,
+                                   current_value
                                ))
             except sqlite3.IntegrityError as err:
-                if err.args[
-                    0] == 'UNIQUE constraint failed: put_call_options.stock_price_id, put_call_options.put_call, put_call_options.strike':
+                if err.args[0] == 'UNIQUE constraint failed: put_call_options.stock_price_id, ' \
+                                  'put_call_options.put_call, put_call_options.strike':
                     # This can happen if we attempt to insert the same data twice
                     pass
                 else:
                     print(err.args[0])
 
-    def get_all_symbols(self) -> list:
+    def get_all_symbols(self) -> pd.DataFrame:
         """ all symbols for """
         query = "SELECT symbol FROM stocks"
         cursor = self.connection.cursor()
         cursor.execute(query)
         rows = cursor.fetchall()
-        return rows
+        np_rows = np.array(rows)
+        df_symbols = np_rows[:, 0]  # symbols
+        df = pd.DataFrame(data=df_symbols, columns=["symbol"])
+        return df
 
-    def get_all_options_expirations(self, symbol):
+    def get_all_options_expirations(self, symbol: str) -> pd.DataFrame:
         cursor = self.connection.cursor()
         cursor.execute("SELECT * FROM option_expire where symbol = ?", [symbol])
         rows = cursor.fetchall()
-        return rows
+        np_rows = np.array(rows)
+        df_expirations = np_rows[:, [0, 2]]  # expire date
+        df_column_values = ["option_expire_id", "expire_date"]
+        df = pd.DataFrame(data=df_expirations, columns=df_column_values)
+        return df
 
     def get_all_options_for_expiration(self, option_expire_id, put_call=None):
         cursor = self.connection.cursor()
@@ -181,28 +197,19 @@ class FinanceDB():
         rows = cursor.fetchall()
         return rows
 
-    # def get_date_times_for_expiration(self, symbol, option_expire_id):
-    #     cursor = self.connection.cursor()
-    #
-    #     cursor.execute("SELECT * FROM stock_price where symbol = ? AND option_expire_id = ?",
-    #                [symbol, option_expire_id])
-    #     rows = cursor.fetchall()
-    #     self.get_date_times_for_expiration_df(symbol, option_expire_id)
-    #     return rows
-
-    def get_date_times_for_expiration_df(self, symbol, option_expire_id) ->pd.DataFrame:
+    def get_date_times_for_expiration_df(self, symbol, option_expire_id) -> pd.DataFrame:
         cursor = self.connection.cursor()
 
         cursor.execute("SELECT * FROM stock_price where symbol = ? AND option_expire_id = ?",
-                   [symbol, option_expire_id])
+                       [symbol, option_expire_id])
         rows = cursor.fetchall()
         np_rows = np.array(rows)
-        df_data = np_rows[:,[0, 2, 3]]      # stock_price_id, DateTime and stock price
+        df_data = np_rows[:, [0, 2, 3]]  # stock_price_id, DateTime and stock price
         df_column_values = ["stock_price_id", "datetime", "price"]
         df = pd.DataFrame(data=df_data, columns=df_column_values)
         return df
 
-    def get_unique_strikes_for_expiration(self, option_expire_id, put_call=None):
+    def get_unique_strikes_for_expiration(self, option_expire_id, put_call=None) -> pd.DataFrame:
         cursor = self.connection.cursor()
         if put_call is None:
             cursor.execute("SELECT distinct strike FROM put_call_options where option_expire_id = ? ORDER BY strike",
@@ -212,8 +219,11 @@ class FinanceDB():
                            "ORDER BY strike",
                            [option_expire_id, put_call])
         rows = cursor.fetchall()
-        return rows
-
+        np_rows = np.array(rows)
+        df_data = np_rows[:, 0]  # strike
+        df_column_values = ["strike"]
+        df = pd.DataFrame(data=df_data, columns=df_column_values)
+        return df
 
     def _create_verify_tables(self):
         # Get a list of all tables

@@ -3,7 +3,7 @@
 """
 Created on Thu Aug  3 11:15:04 2017
 
-@author: fredoleary
+@author: Fred OLeary
 """
 
 # from yahoo_finance import Share
@@ -22,15 +22,21 @@ import pickle
 import yfinance as yf
 import pandas
 
+
+# noinspection SpellCheckingInspection,PyMethodMayBeStatic,PyMethodMayBeStatic,PyMethodMayBeStatic,
+# PyMethodMayBeStatic,PyMethodMayBeStatic
+# noinspection PyMethodMayBeStatic
 class FinanceWeb:
-    """ Class for retreiving stock quotes and news """
-    # Note that alphavantage resstricts API access for free versions to 5 calls/min, max 500 calls per day
+    """ Class for retrieving stock quotes and news """
+    # Note that AlphaVantage restricts API access for free versions to 5 calls/min, max 500 calls per day
     save_to_file = False
     read_from_file = False
 
-    def get_quotes_for_stock_intraday(self, stock_ticker):
-        """ Return intraday prices from alphavantage. """
+    # noinspection SpellCheckingInspection
+    def get_quotes_for_stock_intra_day(self, stock_ticker):
+        """ Return intra-day prices from AlphaVantage. """
         quotes = []
+        # noinspection SpellCheckingInspection
         url = "https://www.alphavantage.co/query?function=TIME_SERIES_INTRADAY" + \
               "&symbol=" + stock_ticker + "&interval=1min&outputsize=full" + \
               "&apikey=M8KGCPCGZQSJJO3V"
@@ -51,8 +57,9 @@ class FinanceWeb:
             logging.error("Cannot get quotes for: " + stock_ticker)
         return quotes
 
+    # noinspection SpellCheckingInspection
     def get_quotes_for_stock_series(self, stock_ticker):
-        """ Return day series prices from alphavantage. """
+        """ Return day series prices from AlphaVantage. """
         quotes = []
         if self.read_from_file is False:
             url = "https://www.alphavantage.co/query?function=TIME_SERIES_DAILY" + \
@@ -106,8 +113,6 @@ class FinanceWeb:
             quotes = self.read_file(stock_ticker)
         return quotes
 
-
-
     def read_file(self, stock_ticker):
         with open(stock_ticker + "_file.pkl", 'rb') as f:
             quotes = pickle.load(f)
@@ -138,11 +143,12 @@ class FinanceWeb:
                     dt_gmt = dt_local.astimezone(pytz.utc)  # Converts to gmt
                     dt_gmt = dt_gmt.replace(tzinfo=None)  # finally removes the tz info
                     # print( "date/time: ", dt_gmt)
-                    news.append({"title": item["t"], "description": item["sp"], \
+                    news.append({"title": item["t"], "description": item["sp"],
                                  "source": item["s"], "time": dt_gmt})
 
         return news
 
+    # noinspection PyUnresolvedReferences
     @classmethod
     def get_news_for_stock_cf(cls, stock_ticker):
         """ Return the list of news items for stock_ticker using City falcon """
@@ -153,8 +159,10 @@ class FinanceWeb:
               "&access_token=8e02bc06e7d6c129f55d45253eb2240b275e66de8d8c959ad7b60bea9bad22f2"
         try:
             req = urllib.request.Request(url)
+            # noinspection SpellCheckingInspection
             req.add_header("user-agent",
-                           "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.90 Safari/537.36")
+                           "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_5) AppleWebKit/537.36 "
+                           "(KHTML, like Gecko) Chrome/60.0.3112.90 Safari/537.36")
             response = urllib.request.urlopen(req)
             #            response = urllib.request.urlopen(url)
             result = response.read()
@@ -164,7 +172,7 @@ class FinanceWeb:
             for news_item in news_items["stories"]:
                 dt_gmt = parser.parse(news_item["publishTime"])
                 dt_gmt = dt_gmt.replace(tzinfo=None)
-                news.append({"title": news_item["title"], "description": news_item["description"], \
+                news.append({"title": news_item["title"], "description": news_item["description"],
                              "source": news_item["source"]["name"], "time": dt_gmt})
 
             return news
@@ -173,7 +181,7 @@ class FinanceWeb:
             logging.error(err.code)
             return news
 
-    def get_options_for_stock_series_yahoo(self, stock_ticker):
+    def get_options_for_stock_series_yahoo(self, stock_ticker) -> list:
         """ Return options chain prices from yahoo finance.
         This method returns monthly options chains for option strike prices 'around' the money
         """
@@ -197,17 +205,13 @@ class FinanceWeb:
                                       'expire_date': date_time,
                                       'options_chain': filtered_options}
                     options.append(return_options)
-
         except Exception as err:
-            print("Exception ", err.code)
-            logging.error(err.code)
+            print("Exception ", err.args[0])
+            logging.error(err.args[0])
 
         return options
 
     def is_third_friday(self, time_str: str) -> (bool, str, datetime):
-        """
-        :rtype: (bool, str)
-        """
         d = datetime.strptime(time_str, '%Y-%m-%d')  # Eg "2020-10-08"
         # Note - day is actually d-1 (no idea why)
         d = d + timedelta(days=1)
@@ -220,19 +224,21 @@ class FinanceWeb:
         return False, time_str, d
 
     def filter_to_at_the_money(self, options_obj: any) -> any:
-        calls = self.filter_to_the_money_puts_and_calls( options_obj.calls, True)
+        calls = self.filter_to_the_money_puts_and_calls(options_obj.calls, True)
         puts = self.filter_to_the_money_puts_and_calls(options_obj.puts, False)
-        return {'calls':calls ,'puts':puts}
+        return {'calls': calls, 'puts': puts}
 
-    def filter_to_the_money_puts_and_calls(self, df: pandas.core.frame.DataFrame, is_call: bool) -> pandas.core.frame.DataFrame:
+    def filter_to_the_money_puts_and_calls(self, df: pandas.DataFrame, is_call: bool) -> \
+            pandas.DataFrame:
         start_index = 0
         end_index = len(df)
         current_index = 0
         found_transition = False
         transition = True
-        if is_call: transition = False
+        if is_call:
+            transition = False
         for index, row in df.iterrows():
-            if found_transition :
+            if found_transition:
                 if current_index - 10 > 0:
                     start_index = current_index - 10
                 if current_index + 10 < end_index:
@@ -243,5 +249,5 @@ class FinanceWeb:
                 if row["inTheMoney"] == transition:
                     found_transition = True
                 else:
-                    current_index +=1
+                    current_index += 1
         return df
