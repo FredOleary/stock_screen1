@@ -12,6 +12,7 @@ of 'jagged stained glass' effect.
 # from matplotlib.collections import PolyCollection
 # from matplotlib.collections import LineCollection
 # from matplotlib.collections import PatchCollection
+import math
 import matplotlib.pyplot as plt
 # noinspection SpellCheckingInspection
 # from matplotlib import colors as mcolors
@@ -59,10 +60,13 @@ def prepare_options(options_db: FinanceDB, symbol: str, options_for_expiration_k
     # Note that this solution is z*2 (not good). Also indices are fragile
 
     def solve_for_y(y_strike_nest, stock_price_id_nest, options_for_expiration_nest) -> float:
-        result = 0.0
-        for option in options_for_expiration_nest:
-            if stock_price_id_nest == option[1] and y_strike_nest == option[4]:
-                return option[6]  # the bid
+        result = math.nan
+        for i_nest, option in options_for_expiration_nest.iterrows():
+            if stock_price_id_nest == option["stock_price_id"] and y_strike_nest == option["strike"]:
+                if option["bid"] is None:
+                    return option["lastPrice"]
+                    pass
+                return option["bid"]
         return result
 
     z_price = np.zeros((x_dates.size, y_strikes.size), dtype=float)
@@ -90,13 +94,13 @@ def chart_option(symbol: str, put_call: str, expiration_date: datetime.datetime,
     # Plot a 3D surface
     # surf1 = ax.plot_surface(X, Y, Z, cmap=my_cmap)
     ax.plot_surface(x, y, z)
-    date_format = mdates.DateFormatter('%D')
+    date_format = mdates.DateFormatter('%D %H:%M')
     ax.xaxis.set_major_formatter(date_format)
 
     ax.set_xlabel('Date/Time')
     ax.set_ylabel('Strike Price')
     ax.set_zlabel('Option Price')
-    ax.set_zlim3d(0, 50)
+    # ax.set_zlim3d(0, 50)
 
     plt.title("{0} chain for {1}, expires {2}".format(put_call, symbol, expiration_date.strftime("%Y-%m-%d")))
 

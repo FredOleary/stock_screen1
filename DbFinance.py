@@ -185,7 +185,7 @@ class FinanceDB:
         df = pd.DataFrame(data=df_expirations, columns=df_column_values)
         return df
 
-    def get_all_options_for_expiration(self, option_expire_id, put_call=None):
+    def get_all_options_for_expiration(self, option_expire_id, put_call=None) -> pd.DataFrame:
         cursor = self.connection.cursor()
         if type is None:
             cursor.execute("SELECT * FROM put_call_options where option_expire_id = ?",
@@ -195,7 +195,10 @@ class FinanceDB:
                            [option_expire_id, put_call])
 
         rows = cursor.fetchall()
-        return rows
+        np_rows = np.array(rows)
+        df_data = np_rows[:, [1, 4, 5, 6]]  # stock_price_id, strike and bid
+        df = pd.DataFrame(data=df_data, columns=["stock_price_id", "strike", "lastPrice", "bid"])
+        return df
 
     def get_date_times_for_expiration_df(self, symbol, option_expire_id) -> pd.DataFrame:
         cursor = self.connection.cursor()
