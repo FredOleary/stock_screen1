@@ -47,6 +47,31 @@ def prepare_options(options_db: FinanceDB, symbol: str, options_for_expiration_k
     Y Coordinate is the array of strike prices
     Z Coordinate is the corresponding option price at each time/strike
     """
+    def get_option_value(option_row) -> float:
+        result = math.nan
+        value = option_row["bid"]
+        if value is None:
+            value = option_row["lastPrice"]
+        if value is not None:
+            if put_call == "CALL":
+                # Calculate extrinsic value for call
+                if option_row["current_value"] > option_row["strike"]:
+                    intrinsic_value = option_row["current_value"] - option_row["strike"]
+                    result = value - intrinsic_value
+                else:
+                    result = value
+        return result
+
+    def create_index_map(series):
+        index_map = {}
+        index = 0
+        for element in series:
+            if not element in index_map.keys():
+                index_map[element] = index
+                index += 1
+        return index_map
+
+
     df_dates_and_stock_price = options_db.get_date_times_for_expiration_df(symbol, options_for_expiration_key)
     x_dates = df_dates_and_stock_price["datetime"].to_numpy()
     stock_price_ids = df_dates_and_stock_price["stock_price_id"].to_numpy()
@@ -56,24 +81,13 @@ def prepare_options(options_db: FinanceDB, symbol: str, options_for_expiration_k
     y_strikes = df_strikes["strike"].to_numpy()
     options_for_expiration = options_db.get_all_options_for_expiration(options_for_expiration_key, put_call=put_call)
 
-    # Solve the vertices for each strike. (Note there may not always be a solution for a strike/time pair
-    # Note that this solution is z*2 (not good). Also indices are fragile
+    z_price = np.full((x_dates.size, y_strikes.size), math.nan, dtype=float)
+    stock_price_id_map = create_index_map(stock_price_ids)
+    y_strike_map = create_index_map(y_strikes)
 
-    def solve_for_y(y_strike_nest, stock_price_id_nest, options_for_expiration_nest) -> float:
-        result = math.nan
-        for i_nest, option in options_for_expiration_nest.iterrows():
-            if stock_price_id_nest == option["stock_price_id"] and y_strike_nest == option["strike"]:
-                if option["bid"] is None:
-                    return option["lastPrice"]
-                    pass
-                return option["bid"]
-        return result
-
-    z_price = np.zeros((x_dates.size, y_strikes.size), dtype=float)
-    for i, stock_price_id in enumerate(stock_price_ids):
-        for j, y_strike in enumerate(y_strikes):
-            z = solve_for_y(y_strike, stock_price_id, options_for_expiration)  # x[0] is the stock_price_id
-            z_price[i][j] = z
+    for index, option_row in options_for_expiration.iterrows():
+        value = get_option_value( option_row)
+        z_price[stock_price_id_map[option_row["stock_price_id"]]][y_strike_map[option_row["strike"]]]= value
 
     return x_dates, y_strikes, z_price
 
