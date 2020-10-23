@@ -21,7 +21,8 @@ import numpy as np
 import datetime
 # noinspection SpellCheckingInspection
 import matplotlib.dates as mdates
-
+from matplotlib.colors import Normalize
+import matplotlib.cm as cm
 from DbFinance import FinanceDB
 
 
@@ -104,10 +105,19 @@ def chart_option(symbol: str, put_call: str, expiration_date: datetime.datetime,
     fig = plt.figure(figsize=(10, 6))
     ax = fig.add_subplot(111, projection='3d')
     # my_cmap = plt.get_cmap('gist_earth')
-
+    my_cmap = plt.get_cmap("gist_earth")
     # Plot a 3D surface
-    # surf1 = ax.plot_surface(X, Y, Z, cmap=my_cmap)
-    ax.plot_surface(x, y, z)
+    #surf1 = ax.plot_surface(x, y, z, cmap=my_cmap)
+    #ax.plot_surface(x, y, z, cmap=None)
+    cmap = plt.get_cmap("coolwarm")
+    norm = Normalize()
+    colors = norm(z)
+    ax.plot_surface(x, y, z, linewidth=0, facecolors=cmap(colors), shade=True, alpha=0.75)
+
+    mappable = cm.ScalarMappable(cmap=cmap)
+    mappable.set_array(colors)
+    fig.colorbar(mappable, shrink=0.9, aspect=5)
+
     date_format = mdates.DateFormatter('%D %H:%M')
     ax.xaxis.set_major_formatter(date_format)
 

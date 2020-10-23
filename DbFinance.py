@@ -14,8 +14,9 @@ import pandas as pd
 class FinanceDB:
     """ Storage for news/prices etc """
 
-    def __init__(self, stock_data=None):
+    def __init__(self, stock_data=None, logger=None):
         self.connection = None
+        self.logger = logger
         self.db_name = "stock_options"
         self.stock_data = stock_data
         self.tables = [{"name": "stocks",
@@ -124,7 +125,8 @@ class FinanceDB:
                 self.connection.commit()
                 # print("value added for time: ", quote["time"])
             except Exception as err:
-                print("Exception ", err.args[0])
+                if self.logger is not None:
+                    self.logger.error("Exception ", err.args[0])
                 return 0
                 # print("value already added for time: ", quote["time"])
 
@@ -162,7 +164,8 @@ class FinanceDB:
                     # This can happen if we attempt to insert the same data twice
                     pass
                 else:
-                    print(err.args[0])
+                    if self.logger is not None:
+                        self.logger.error(err.args[0])
 
     def get_all_symbols(self) -> pd.DataFrame:
         """ all symbols for """

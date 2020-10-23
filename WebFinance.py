@@ -10,7 +10,6 @@ Created on Thu Aug  3 11:15:04 2017
 
 import urllib.request
 import json
-import logging
 from datetime import datetime
 from datetime import timedelta
 from datetime import timezone
@@ -31,6 +30,9 @@ class FinanceWeb:
     # Note that AlphaVantage restricts API access for free versions to 5 calls/min, max 500 calls per day
     save_to_file = False
     read_from_file = False
+
+    def __init__(self, log=None):
+        self.logger = log
 
     # noinspection SpellCheckingInspection
     def get_quotes_for_stock_intra_day(self, stock_ticker):
@@ -54,7 +56,8 @@ class FinanceWeb:
                 dt_gmt = dt_gmt.replace(tzinfo=None)  # GM time with tz info stripped
                 quotes.append({"time": dt_gmt, "price": value["4. close"]})
         else:
-            logging.error("Cannot get quotes for: " + stock_ticker)
+            if self.logger is not None:
+                self.logger.error("Cannot get quotes for: " + stock_ticker)
         return quotes
 
     # noinspection SpellCheckingInspection
@@ -82,7 +85,8 @@ class FinanceWeb:
                         self.save_in_file(stock_ticker, quotes)
 
             else:
-                logging.error("Cannot get quotes for: " + stock_ticker)
+                if self.logger is not None:
+                    self.logger.error("Cannot get quotes for: " + stock_ticker)
         else:
             quotes = self.read_file(stock_ticker)
         return quotes
@@ -108,7 +112,8 @@ class FinanceWeb:
                         self.save_in_file(stock_ticker, quotes)
 
             else:
-                logging.error("Cannot get quotes for: " + stock_ticker)
+                if self.logger is not None:
+                    self.logger.error("Cannot get quotes for: " + stock_ticker)
         else:
             quotes = self.read_file(stock_ticker)
         return quotes
@@ -177,14 +182,16 @@ class FinanceWeb:
 
             return news
         except urllib.error.HTTPError as err:
-            print("Exception ", err.code)
-            logging.error(err.code)
+            if self.logger is not None:
+                self.logger.error(err.code)
             return news
 
     def get_options_for_stock_series_yahoo(self, stock_ticker) -> list:
         """ Return options chain prices from yahoo finance.
         This method returns monthly options chains for option strike prices 'around' the money
         """
+        if self.logger is not None:
+            self.logger.info("Get option prices for {symbol}".format(symbol=stock_ticker))
         options = []
         try:
             ticker = yf.Ticker(stock_ticker)
@@ -206,8 +213,8 @@ class FinanceWeb:
                                       'options_chain': filtered_options}
                     options.append(return_options)
         except Exception as err:
-            print("Exception ", err.args[0])
-            logging.error(err.args[0])
+            if self.logger is not None:
+                self.logger.error(err.args[0])
 
         return options
 
