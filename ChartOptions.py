@@ -51,14 +51,16 @@ def prepare_options(options_db: FinanceDB, symbol: str, options_for_expiration_k
     def get_option_value(option_row) -> float:
         result = math.nan
         value = option_row["bid"]
-        if value is None:
-            value = option_row["lastPrice"]
+        # if value is None:
+        #     value = option_row["lastPrice"]
         if value is not None:
             if put_call == "CALL":
                 # Calculate extrinsic value for call
                 if option_row["current_value"] > option_row["strike"]:
                     intrinsic_value = option_row["current_value"] - option_row["strike"]
                     result = value - intrinsic_value
+                    if result < 0:
+                        result=0
                 else:
                     result = value
         return result
@@ -111,11 +113,15 @@ def chart_option(symbol: str, put_call: str, expiration_date: datetime.datetime,
     #ax.plot_surface(x, y, z, cmap=None)
     cmap = plt.get_cmap("coolwarm")
     norm = Normalize()
-    colors = norm(z)
-    ax.plot_surface(x, y, z, linewidth=0, facecolors=cmap(colors), shade=True, alpha=0.75)
+    # colors = norm(z)
+    ax.plot_surface(x, y, z, linewidth=0, facecolors=cmap(z), shade=True, alpha=0.5)
+    # surf1 = ax.plot_surface(x, y, z, cmap=cmap, shade=True, alpha=0.75)
 
     mappable = cm.ScalarMappable(cmap=cmap)
-    mappable.set_array(colors)
+    mappable.set_array(z)
+    min = np.amin(z, where=~np.isnan(z),initial=500)
+    max = np.amax(z, where=~np.isnan(z),initial=-1)
+    mappable.set_clim(math.floor(min), math.ceil(max))
     fig.colorbar(mappable, shrink=0.9, aspect=5)
 
     date_format = mdates.DateFormatter('%D %H:%M')
