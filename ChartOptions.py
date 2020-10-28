@@ -56,13 +56,15 @@ def prepare_options(options_db: FinanceDB, symbol: str, options_for_expiration_k
         if value is not None:
             if put_call == "CALL":
                 # Calculate extrinsic value for call
-                if option_row["current_value"] > option_row["strike"]:
-                    intrinsic_value = option_row["current_value"] - option_row["strike"]
-                    result = value - intrinsic_value
-                    if result < 0:
-                        result=0
+                if option_row['bid'] == 0 and option_row['ask' == 0]:
+                    # Looks like some kind of hiccup...
+                    result = math.nan
                 else:
-                    result = value
+                    if option_row["current_value"] > option_row["strike"]:
+                        intrinsic_value = option_row["current_value"] - option_row["strike"]
+                        result = value - intrinsic_value
+                    else:
+                        result = value
         return result
 
     def create_index_map(series):
@@ -112,10 +114,8 @@ def chart_option(symbol: str, put_call: str, expiration_date: datetime.datetime,
     #surf1 = ax.plot_surface(x, y, z, cmap=my_cmap)
     #ax.plot_surface(x, y, z, cmap=None)
     cmap = plt.get_cmap("coolwarm")
-    norm = Normalize()
-    # colors = norm(z)
     ax.plot_surface(x, y, z, linewidth=0, facecolors=cmap(z), shade=True, alpha=0.5)
-    # surf1 = ax.plot_surface(x, y, z, cmap=cmap, shade=True, alpha=0.75)
+    # ax.plot_surface(x, y, z, cmap=cmap, shade=True, alpha=0.75)
 
     mappable = cm.ScalarMappable(cmap=cmap)
     mappable.set_array(z)
