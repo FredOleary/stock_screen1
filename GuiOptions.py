@@ -14,7 +14,7 @@ import matplotlib.dates as mdates
 from matplotlib.colors import Normalize
 import matplotlib.cm as cm
 from DbFinance import FinanceDB
-
+from ChartOptions import ChartOptions
 
 class GuiOptions(tk.ttk.Frame):
 
@@ -52,12 +52,18 @@ class GuiOptions(tk.ttk.Frame):
 
     def symbol_selection_event(self, *args):
         print("symbol_selection_event", self.symbol_var.get())
-        self.clear_expiration_menu()
-        df_options_expirations = self.options_db.get_all_options_expirations(self.symbol_var.get())
-        expiration_set = set()
-        for index, row in df_options_expirations.iterrows():
-            expiration_set.add(row["expire_date"].strftime('%Y-%m-%d'))
-        self.update_expiration(expiration_set)
+        if not self.symbol_var.get():
+            pass
+        else:
+            self.clear_expiration_menu()
+            df_options_expirations = self.options_db.get_all_options_expirations(self.symbol_var.get())
+            expiration_set = set()
+            self.shadow_expiration = dict()
+            for index, row in df_options_expirations.iterrows():
+                expiration_key = row["expire_date"].strftime('%Y-%m-%d')
+                expiration_set.add(expiration_key)
+                self.shadow_expiration[expiration_key] = row
+            self.update_expiration(expiration_set)
 
     def clear_expiration_menu(self):
         self.expiration_var.set('')
@@ -69,7 +75,17 @@ class GuiOptions(tk.ttk.Frame):
                                                            command=lambda value=choice: self.expiration_var.set(value))
 
     def expiration_var_selection_event(self, *args):
-        print("expiration_var_selection_event", self.expiration_var.get())
+        if not self.expiration_var.get():
+            pass
+        else:
+            print("expiration_var_selection_event", self.expiration_var.get())
+            chart = ChartOptions()
+            row = self.shadow_expiration[self.expiration_var.get()]
+            x_dates, y_strikes, z_price = chart.prepare_options(self.options_db, self.symbol_var.get(),
+                                                                row["option_expire_id"], put_call="CALL")
+            chart.chart_option(self.symbol_var.get(), "Call", row["expire_date"], x_dates, y_strikes, z_price)
+
+            plt.show()
 
     def init_ui(self):
         self.master.title("Options")
