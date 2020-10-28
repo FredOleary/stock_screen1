@@ -23,7 +23,7 @@ import matplotlib.pyplot as plt
 z = np.linspace(0, 50000, 100)
 x = np.sin(z)
 y = np.cos(z)
-
+d = np.linspace(1, 90, 90)
 # Creating figyre
 fig = plt.figure(figsize=(14, 9))
 ax = plt.axes(projection='3d')

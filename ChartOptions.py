@@ -94,14 +94,8 @@ class ChartOptions:
 
         fig = plt.figure(figsize=(10, 6))
         ax = fig.add_subplot(111, projection='3d')
-        # my_cmap = plt.get_cmap('gist_earth')
-        my_cmap = plt.get_cmap("gist_earth")
-        # Plot a 3D surface
-        #surf1 = ax.plot_surface(x, y, z, cmap=my_cmap)
-        #ax.plot_surface(x, y, z, cmap=None)
         cmap = plt.get_cmap("coolwarm")
         ax.plot_surface(x, y, z, linewidth=0, facecolors=cmap(z), shade=True, alpha=0.5)
-        # ax.plot_surface(x, y, z, cmap=cmap, shade=True, alpha=0.75)
 
         mappable = cm.ScalarMappable(cmap=cmap)
         mappable.set_array(z)
