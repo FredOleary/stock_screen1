@@ -8,6 +8,7 @@ Created on Tue October  8 19:35:54 2020
 import sqlite3
 import numpy as np
 import pandas as pd
+import datetime
 
 
 # noinspection PyMethodMayBeStatic
@@ -188,14 +189,14 @@ class FinanceDB:
         df = pd.DataFrame(data=df_expirations, columns=df_column_values)
         return df
 
-    def get_all_options_for_expiration(self, option_expire_id, put_call=None) -> pd.DataFrame:
+    def get_all_options_for_expiration(self, option_expire_id: int, put_call :str=None)-> pd.DataFrame:
         cursor = self.connection.cursor()
-        if type is None:
-            cursor.execute("SELECT * FROM put_call_options where option_expire_id = ?",
-                           [option_expire_id])
-        else:
-            cursor.execute("SELECT * FROM put_call_options where option_expire_id = ? AND put_call = ?",
-                           [option_expire_id, put_call])
+        query = "SELECT * FROM put_call_options where option_expire_id = ?"
+        args = [option_expire_id]
+        if type is not None:
+            query = query + " AND put_call = ?"
+            args.append(put_call)
+        cursor.execute(query,args)
 
         rows = cursor.fetchall()
         np_rows = np.array(rows)
@@ -204,11 +205,21 @@ class FinanceDB:
                                                  "bid", "ask", "current_value"])
         return df
 
-    def get_date_times_for_expiration_df(self, symbol, option_expire_id) -> pd.DataFrame:
+    def get_date_times_for_expiration_df(self, symbol: str, option_expire_id: int,
+                                         start_date: datetime.datetime = None,
+                                         end_date: datetime.datetime = None,) -> pd.DataFrame:
         cursor = self.connection.cursor()
 
-        cursor.execute("SELECT * FROM stock_price where symbol = ? AND option_expire_id = ?",
-                       [symbol, option_expire_id])
+        query = "SELECT * FROM stock_price where symbol = ? AND option_expire_id = ?"
+        args = [symbol, option_expire_id]
+        if start_date is not None:
+            query = query + " AND time >= ?"
+            args.append(start_date)
+        if end_date is not None:
+            query = query + " AND time <= ?"
+            args.append(end_date)
+
+        cursor.execute(query, args)
         rows = cursor.fetchall()
         np_rows = np.array(rows)
         df_data = np_rows[:, [0, 2, 3]]  # stock_price_id, DateTime and stock price

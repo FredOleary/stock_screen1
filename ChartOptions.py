@@ -27,8 +27,8 @@ from DbFinance import FinanceDB
 
 
 class ChartOptions:
-
-    def prepare_options(self, options_db: FinanceDB, symbol: str, options_for_expiration_key: int, put_call: str):
+    def prepare_options(self, options_db: FinanceDB, symbol: str, options_for_expiration_key: int, put_call: str,
+                        start_date: datetime.datetime=None, end_date: datetime.datetime=None ):
         """
         X Coordinate is Time data,
         Y Coordinate is the array of strike prices
@@ -51,6 +51,8 @@ class ChartOptions:
                             result = value - intrinsic_value
                         else:
                             result = value
+            else:
+                pass
             return result
 
         def create_index_map(series):
@@ -63,22 +65,25 @@ class ChartOptions:
             return index_map
 
 
-        df_dates_and_stock_price = options_db.get_date_times_for_expiration_df(symbol, options_for_expiration_key)
+        df_dates_and_stock_price = options_db.get_date_times_for_expiration_df(
+            symbol, options_for_expiration_key, start_date, end_date)
         x_dates = df_dates_and_stock_price["datetime"].to_numpy()
         stock_price_ids = df_dates_and_stock_price["stock_price_id"].to_numpy()
 
         df_strikes = options_db.get_unique_strikes_for_expiration(options_for_expiration_key, put_call)
 
         y_strikes = df_strikes["strike"].to_numpy()
-        options_for_expiration = options_db.get_all_options_for_expiration(options_for_expiration_key, put_call=put_call)
+        options_for_expiration = options_db.get_all_options_for_expiration(options_for_expiration_key,
+                                                                            put_call=put_call)
 
         z_price = np.full((x_dates.size, y_strikes.size), math.nan, dtype=float)
         stock_price_id_map = create_index_map(stock_price_ids)
         y_strike_map = create_index_map(y_strikes)
 
         for index, option_row in options_for_expiration.iterrows():
-            value = get_option_value( option_row)
-            z_price[stock_price_id_map[option_row["stock_price_id"]]][y_strike_map[option_row["strike"]]]= value
+            if option_row["stock_price_id"] in stock_price_id_map:
+                value = get_option_value( option_row)
+                z_price[stock_price_id_map[option_row["stock_price_id"]]][y_strike_map[option_row["strike"]]]= value
 
         return x_dates, y_strikes, z_price
 
@@ -90,6 +95,8 @@ class ChartOptions:
         x_dates = mdates.date2num(x_dates)
 
         x, y = np.meshgrid(x_dates, y_strikes)
+        # foo = np.linspace(1, len(x_dates), len(x_dates))
+        # x, y = np.meshgrid(foo, y_strikes)
         z = z_price.transpose()
 
         fig = plt.figure(figsize=(10, 6))

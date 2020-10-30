@@ -4,15 +4,15 @@ import tkinter as tk
 from tkinter.ttk import Style
 import sys
 
-import math
+from tkcalendar import Calendar, DateEntry
 import matplotlib.pyplot as plt
 # noinspection SpellCheckingInspection
-import numpy as np
+import time
 import datetime
 # noinspection SpellCheckingInspection
 import matplotlib.dates as mdates
 from matplotlib.colors import Normalize
-import matplotlib.cm as cm
+import tkcalendar as cal
 from DbFinance import FinanceDB
 from ChartOptions import ChartOptions
 
@@ -52,6 +52,7 @@ class GuiOptions(tk.ttk.Frame):
 
     def symbol_selection_event(self, *args):
         print("symbol_selection_event", self.symbol_var.get())
+
         if not self.symbol_var.get():
             pass
         else:
@@ -79,13 +80,27 @@ class GuiOptions(tk.ttk.Frame):
             pass
         else:
             print("expiration_var_selection_event", self.expiration_var.get())
+             # Note - app crashes if we plot charts with focus on a DateEntry widget
+            self.close_button.focus_force()
+            self.update()
+            self.update_idletasks()
+
+            start_date = datetime.datetime(2020, 10, 28)
+            end_date = datetime.datetime(2020, 10, 29)
             chart = ChartOptions()
             row = self.shadow_expiration[self.expiration_var.get()]
+
             x_dates, y_strikes, z_price = chart.prepare_options(self.options_db, self.symbol_var.get(),
-                                                                row["option_expire_id"], put_call="CALL")
+                                                                row["option_expire_id"], put_call="CALL",
+                                                                start_date=start_date, end_date=end_date)
             chart.chart_option(self.symbol_var.get(), "Call", row["expire_date"], x_dates, y_strikes, z_price)
 
             plt.show()
+
+    def start_date_changed(self, args):
+        print( self.start_cal.get())
+    def end_date_changed(self, args):
+        print( self.end_cal.get())
 
     def init_ui(self):
         self.master.title("Options")
@@ -100,9 +115,9 @@ class GuiOptions(tk.ttk.Frame):
 
         self.pack(fill=tk.BOTH, expand=True)
 
-        closeButton = tk.ttk.Button(tool_bar, text="Close")
-        closeButton.pack(side=tk.RIGHT, padx=5, pady=5)
-        closeButton.bind('<Button-1>', self.quit)
+        self.close_button = tk.ttk.Button(tool_bar, text="Close")
+        self.close_button.pack(side=tk.RIGHT, padx=5, pady=5)
+        self.close_button.bind('<Button-1>', self.quit)
 
         self.symbol_var.set('')
         self.symbol_choices = {''}
@@ -122,11 +137,30 @@ class GuiOptions(tk.ttk.Frame):
         self.popup_expiration_menu .config(width=16)
         self.popup_expiration_menu.pack(side=tk.LEFT, padx=5, pady=5)
 
+        start_date_container = tk.ttk.Frame(tool_bar)
+        start_date_container.pack(fill=tk.X, side=tk.LEFT, expand=True)
+        start_date_label = tk.ttk.Label(start_date_container, text="Start Date")
+        start_date_label.pack(side=tk.TOP, padx=5, pady=2)
+
+        self.start_cal = cal.DateEntry(start_date_container, width=12, background='darkblue',
+                    foreground='white', borderwidth=2, year=2020)
+        self.start_cal.pack(side=tk.BOTTOM, padx=5, pady=5)
+        self.start_cal.bind('<<DateEntrySelected>>', self.start_date_changed)
+
+        end_date_container = tk.ttk.Frame(tool_bar)
+        end_date_container.pack(fill=tk.X, side=tk.LEFT, expand=True)
+        end_date_label = tk.ttk.Label(end_date_container, text="End Date")
+        end_date_label.pack(side=tk.TOP, padx=5, pady=2)
+
+        self.end_cal = cal.DateEntry(end_date_container, width=12, background='darkblue',
+                    foreground='white', borderwidth=2, year=2020)
+        self.end_cal.pack(side=tk.BOTTOM, padx=5, pady=5)
+        self.end_cal.bind('<<DateEntrySelected>>', self.end_date_changed)
 
 
 def main():
     root = tk.Tk()
-    root.geometry("600x400+300+300")
+    root.geometry("800x600+300+300")
     app = GuiOptions(root)
     root.mainloop()
 
