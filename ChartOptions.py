@@ -67,25 +67,28 @@ class ChartOptions:
 
         df_dates_and_stock_price = options_db.get_date_times_for_expiration_df(
             symbol, options_for_expiration_key, start_date, end_date)
-        x_dates = df_dates_and_stock_price["datetime"].to_numpy()
-        stock_price_ids = df_dates_and_stock_price["stock_price_id"].to_numpy()
+        if df_dates_and_stock_price is not None:
+            x_dates = df_dates_and_stock_price["datetime"].to_numpy()
+            stock_price_ids = df_dates_and_stock_price["stock_price_id"].to_numpy()
 
-        df_strikes = options_db.get_unique_strikes_for_expiration(options_for_expiration_key, put_call)
+            df_strikes = options_db.get_unique_strikes_for_expiration(options_for_expiration_key, put_call)
 
-        y_strikes = df_strikes["strike"].to_numpy()
-        options_for_expiration = options_db.get_all_options_for_expiration(options_for_expiration_key,
-                                                                            put_call=put_call)
+            y_strikes = df_strikes["strike"].to_numpy()
+            options_for_expiration = options_db.get_all_options_for_expiration(options_for_expiration_key,
+                                                                                put_call=put_call)
 
-        z_price = np.full((x_dates.size, y_strikes.size), math.nan, dtype=float)
-        stock_price_id_map = create_index_map(stock_price_ids)
-        y_strike_map = create_index_map(y_strikes)
+            z_price = np.full((x_dates.size, y_strikes.size), math.nan, dtype=float)
+            stock_price_id_map = create_index_map(stock_price_ids)
+            y_strike_map = create_index_map(y_strikes)
 
-        for index, option_row in options_for_expiration.iterrows():
-            if option_row["stock_price_id"] in stock_price_id_map:
-                value = get_option_value( option_row)
-                z_price[stock_price_id_map[option_row["stock_price_id"]]][y_strike_map[option_row["strike"]]]= value
+            for index, option_row in options_for_expiration.iterrows():
+                if option_row["stock_price_id"] in stock_price_id_map:
+                    value = get_option_value( option_row)
+                    z_price[stock_price_id_map[option_row["stock_price_id"]]][y_strike_map[option_row["strike"]]]= value
 
-        return x_dates, y_strikes, z_price
+            return x_dates, y_strikes, z_price
+        else:
+            return None, None, None
 
 
     # noinspection SpellCheckingInspection

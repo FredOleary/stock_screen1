@@ -10,11 +10,10 @@ import matplotlib.pyplot as plt
 import time
 import datetime
 # noinspection SpellCheckingInspection
-import matplotlib.dates as mdates
-from matplotlib.colors import Normalize
 import tkcalendar as cal
 from DbFinance import FinanceDB
 from ChartOptions import ChartOptions
+
 
 class GuiOptions(tk.ttk.Frame):
 
@@ -22,6 +21,10 @@ class GuiOptions(tk.ttk.Frame):
         super().__init__()
         self.symbol_var = tk.StringVar(self)
         self.expiration_var = tk.StringVar(self)
+        self.is_date_filter_on = tk.IntVar(value=0)
+        self.start_date = None
+        self.end_date = None
+
         self.init_ui()
         self.clear_symbol_menu()
         self.clear_expiration_menu()
@@ -80,34 +83,37 @@ class GuiOptions(tk.ttk.Frame):
             pass
         else:
             print("expiration_var_selection_event", self.expiration_var.get())
-             # Note - app crashes if we plot charts with focus on a DateEntry widget
+            # Note - app crashes if we plot charts with focus on a DateEntry widget
             self.close_button.focus_force()
             self.update()
             self.update_idletasks()
 
-            start_date = datetime.datetime(2020, 10, 28)
-            end_date = datetime.datetime(2020, 10, 29)
             chart = ChartOptions()
             row = self.shadow_expiration[self.expiration_var.get()]
 
             x_dates, y_strikes, z_price = chart.prepare_options(self.options_db, self.symbol_var.get(),
                                                                 row["option_expire_id"], put_call="CALL",
-                                                                start_date=start_date, end_date=end_date)
-            chart.chart_option(self.symbol_var.get(), "Call", row["expire_date"], x_dates, y_strikes, z_price)
-
-            plt.show()
+                                                                start_date=self.start_date,
+                                                                end_date=self.end_date)
+            if x_dates is not None:
+                chart.chart_option(self.symbol_var.get(), "Call", row["expire_date"], x_dates, y_strikes, z_price)
+                plt.show()
+            else:
+                print("No data available")
 
     def start_date_changed(self, args):
-        print( self.start_cal.get())
+        self.start_date = datetime.datetime.strptime(self.start_cal.get(), "%m/%d/%y")
+        print(self.start_cal.get())
+
     def end_date_changed(self, args):
-        print( self.end_cal.get())
+        self.end_date = datetime.datetime.strptime(self.end_cal.get(), "%m/%d/%y")
+        print(self.end_cal.get())
+
+    def toggle_date_filter(self):
+        pass
 
     def init_ui(self):
         self.master.title("Options")
-        self.style = Style()
-        self.style.theme_use("default")
-
-        self.style.configure('My.TFrame', background='red')
 
         # frame2 = Frame(self, relief=RAISED, borderwidth=1, style='My.TFrame')
         tool_bar = tk.ttk.Frame(self, relief=tk.RAISED, borderwidth=1)
@@ -128,32 +134,47 @@ class GuiOptions(tk.ttk.Frame):
         self.expiration_var.trace('w', self.expiration_var_selection_event)
 
         self.popup_symbol_menu = tk.OptionMenu(tool_bar, self.symbol_var,
-                                            *self.symbol_choices)
-        self.popup_symbol_menu .config(width=8)
+                                               *self.symbol_choices)
+        self.popup_symbol_menu.config(width=8)
         self.popup_symbol_menu.pack(side=tk.LEFT, padx=5, pady=5)
 
         self.popup_expiration_menu = tk.OptionMenu(tool_bar, self.expiration_var,
-                                                *self.expiration_choices)
-        self.popup_expiration_menu .config(width=16)
+                                                   *self.expiration_choices)
+        self.popup_expiration_menu.config(width=16)
         self.popup_expiration_menu.pack(side=tk.LEFT, padx=5, pady=5)
 
-        start_date_container = tk.ttk.Frame(tool_bar)
+        self.style = Style()
+        self.style.theme_use("default")
+        self.style.configure('My.TFrame', background='lightsteelblue')
+
+
+        date_filter_container = tk.ttk.Frame(tool_bar, style='My.TFrame')
+        date_filter_container.pack(fill=tk.X, side=tk.LEFT, expand=False)
+        check_box = tk.Checkbutton( date_filter_container,
+                                        text="Date Filter",
+                                        variable=self.is_date_filter_on,
+                                        command=self.toggle_date_filter,
+                                        bg='lightsteelblue')
+                                        # style='My.TFrame')
+        check_box.pack(padx=10,side=tk.LEFT)
+
+        start_date_container = tk.ttk.Frame(date_filter_container, style='My.TFrame')
         start_date_container.pack(fill=tk.X, side=tk.LEFT, expand=True)
-        start_date_label = tk.ttk.Label(start_date_container, text="Start Date")
+        start_date_label = tk.ttk.Label(start_date_container, text="Start Date", background="lightsteelblue")
         start_date_label.pack(side=tk.TOP, padx=5, pady=2)
 
         self.start_cal = cal.DateEntry(start_date_container, width=12, background='darkblue',
-                    foreground='white', borderwidth=2, year=2020)
+                                       foreground='white', borderwidth=2, year=2020)
         self.start_cal.pack(side=tk.BOTTOM, padx=5, pady=5)
         self.start_cal.bind('<<DateEntrySelected>>', self.start_date_changed)
 
-        end_date_container = tk.ttk.Frame(tool_bar)
+        end_date_container = tk.ttk.Frame(date_filter_container, style='My.TFrame')
         end_date_container.pack(fill=tk.X, side=tk.LEFT, expand=True)
-        end_date_label = tk.ttk.Label(end_date_container, text="End Date")
+        end_date_label = tk.ttk.Label(end_date_container, text="End Date", background="lightsteelblue")
         end_date_label.pack(side=tk.TOP, padx=5, pady=2)
 
         self.end_cal = cal.DateEntry(end_date_container, width=12, background='darkblue',
-                    foreground='white', borderwidth=2, year=2020)
+                                     foreground='white', borderwidth=2, year=2020)
         self.end_cal.pack(side=tk.BOTTOM, padx=5, pady=5)
         self.end_cal.bind('<<DateEntrySelected>>', self.end_date_changed)
 

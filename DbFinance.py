@@ -222,10 +222,13 @@ class FinanceDB:
         cursor.execute(query, args)
         rows = cursor.fetchall()
         np_rows = np.array(rows)
-        df_data = np_rows[:, [0, 2, 3]]  # stock_price_id, DateTime and stock price
-        df_column_values = ["stock_price_id", "datetime", "price"]
-        df = pd.DataFrame(data=df_data, columns=df_column_values)
-        return df
+        if len(np_rows) > 0:
+            df_data = np_rows[:, [0, 2, 3]]  # stock_price_id, DateTime and stock price
+            df_column_values = ["stock_price_id", "datetime", "price"]
+            df = pd.DataFrame(data=df_data, columns=df_column_values)
+            return df
+        else:
+            return None
 
     def get_unique_strikes_for_expiration(self, option_expire_id, put_call=None) -> pd.DataFrame:
         cursor = self.connection.cursor()
