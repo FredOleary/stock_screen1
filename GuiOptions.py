@@ -28,6 +28,7 @@ class GuiOptions(tk.ttk.Frame):
         self.init_ui()
         self.clear_symbol_menu()
         self.clear_expiration_menu()
+        self.toggle_date_filter()
         self.options_db = FinanceDB()
         self.get_symbols()
 
@@ -110,7 +111,16 @@ class GuiOptions(tk.ttk.Frame):
         print(self.end_cal.get())
 
     def toggle_date_filter(self):
-        pass
+        if self.is_date_filter_on.get():
+            self.start_cal.config(state='normal')
+            self.end_cal.config(state='normal')
+            self.end_date = datetime.datetime.strptime(self.end_cal.get(), "%m/%d/%y")
+            self.start_date = datetime.datetime.strptime(self.start_cal.get(), "%m/%d/%y")
+        else:
+            self.start_cal.config(state='disabled')
+            self.end_cal.config(state='disabled')
+            self.end_date = None
+            self.start_date = None
 
     def init_ui(self):
         self.master.title("Options")
@@ -177,7 +187,6 @@ class GuiOptions(tk.ttk.Frame):
                                      foreground='white', borderwidth=2, year=2020)
         self.end_cal.pack(side=tk.BOTTOM, padx=5, pady=5)
         self.end_cal.bind('<<DateEntrySelected>>', self.end_date_changed)
-
 
 def main():
     root = tk.Tk()
