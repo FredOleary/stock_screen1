@@ -19,6 +19,8 @@ class GuiOptions(tk.ttk.Frame):
 
     def __init__(self, root):
         super().__init__()
+        self.close_button = None
+        self.chart_button = None
         self.symbol_var = tk.StringVar(self)
         self.expiration_var = tk.StringVar(self)
         self.is_date_filter_on = tk.IntVar(value=0)
@@ -29,6 +31,7 @@ class GuiOptions(tk.ttk.Frame):
         self.clear_symbol_menu()
         self.clear_expiration_menu()
         self.toggle_date_filter()
+        self.update_chart_button_enable()
         self.options_db = FinanceDB()
         self.get_symbols()
 
@@ -45,6 +48,24 @@ class GuiOptions(tk.ttk.Frame):
         print("Exit command")
         sys.exit()
 
+    def create_chart(self, event):
+        self.close_button.focus_force()
+        self.update()
+        self.update_idletasks()
+
+        chart = ChartOptions()
+        row = self.shadow_expiration[self.expiration_var.get()]
+
+        x_dates, y_strikes, z_price = chart.prepare_options(self.options_db, self.symbol_var.get(),
+                                                            row["option_expire_id"], put_call="CALL",
+                                                            start_date=self.start_date,
+                                                            end_date=self.end_date)
+        if x_dates is not None:
+            chart.chart_option(self.symbol_var.get(), "Call", row["expire_date"], x_dates, y_strikes, z_price)
+            plt.show()
+        else:
+            print("No data available")
+
     def clear_symbol_menu(self):
         self.symbol_var.set('')
         self.popup_symbol_menu['menu'].delete(0, 'end')
@@ -56,7 +77,7 @@ class GuiOptions(tk.ttk.Frame):
 
     def symbol_selection_event(self, *args):
         print("symbol_selection_event", self.symbol_var.get())
-
+        self.update_chart_button_enable()
         if not self.symbol_var.get():
             pass
         else:
@@ -80,27 +101,28 @@ class GuiOptions(tk.ttk.Frame):
                                                            command=lambda value=choice: self.expiration_var.set(value))
 
     def expiration_var_selection_event(self, *args):
+        self.update_chart_button_enable()
         if not self.expiration_var.get():
             pass
         else:
             print("expiration_var_selection_event", self.expiration_var.get())
             # Note - app crashes if we plot charts with focus on a DateEntry widget
-            self.close_button.focus_force()
-            self.update()
-            self.update_idletasks()
-
-            chart = ChartOptions()
-            row = self.shadow_expiration[self.expiration_var.get()]
-
-            x_dates, y_strikes, z_price = chart.prepare_options(self.options_db, self.symbol_var.get(),
-                                                                row["option_expire_id"], put_call="CALL",
-                                                                start_date=self.start_date,
-                                                                end_date=self.end_date)
-            if x_dates is not None:
-                chart.chart_option(self.symbol_var.get(), "Call", row["expire_date"], x_dates, y_strikes, z_price)
-                plt.show()
-            else:
-                print("No data available")
+            # self.close_button.focus_force()
+            # self.update()
+            # self.update_idletasks()
+            #
+            # chart = ChartOptions()
+            # row = self.shadow_expiration[self.expiration_var.get()]
+            #
+            # x_dates, y_strikes, z_price = chart.prepare_options(self.options_db, self.symbol_var.get(),
+            #                                                     row["option_expire_id"], put_call="CALL",
+            #                                                     start_date=self.start_date,
+            #                                                     end_date=self.end_date)
+            # if x_dates is not None:
+            #     chart.chart_option(self.symbol_var.get(), "Call", row["expire_date"], x_dates, y_strikes, z_price)
+            #     plt.show()
+            # else:
+            #     print("No data available")
 
     def start_date_changed(self, args):
         self.start_date = datetime.datetime.strptime(self.start_cal.get(), "%m/%d/%y")
@@ -108,7 +130,13 @@ class GuiOptions(tk.ttk.Frame):
 
     def end_date_changed(self, args):
         self.end_date = datetime.datetime.strptime(self.end_cal.get(), "%m/%d/%y")
+        self.adjust_end_date()
         print(self.end_cal.get())
+
+    def adjust_end_date(self):
+        if self.end_date is not None:
+            self.end_date += datetime.timedelta(days=1)
+            self.end_date -= datetime.timedelta(seconds=1)
 
     def toggle_date_filter(self):
         if self.is_date_filter_on.get():
@@ -116,11 +144,18 @@ class GuiOptions(tk.ttk.Frame):
             self.end_cal.config(state='normal')
             self.end_date = datetime.datetime.strptime(self.end_cal.get(), "%m/%d/%y")
             self.start_date = datetime.datetime.strptime(self.start_cal.get(), "%m/%d/%y")
+            self.adjust_end_date()
         else:
             self.start_cal.config(state='disabled')
             self.end_cal.config(state='disabled')
             self.end_date = None
             self.start_date = None
+
+    def update_chart_button_enable(self):
+        if not self.symbol_var.get() or not self.expiration_var.get():
+            self.chart_button.config(state='disabled')
+        else:
+            self.chart_button.config(state='normal')
 
     def init_ui(self):
         self.master.title("Options")
@@ -134,6 +169,10 @@ class GuiOptions(tk.ttk.Frame):
         self.close_button = tk.ttk.Button(tool_bar, text="Close")
         self.close_button.pack(side=tk.RIGHT, padx=5, pady=5)
         self.close_button.bind('<Button-1>', self.quit)
+
+        self.chart_button = tk.ttk.Button(tool_bar, text="Chart")
+        self.chart_button.pack(side=tk.LEFT, padx=5, pady=5)
+        self.chart_button.bind('<Button-1>', self.create_chart)
 
         self.symbol_var.set('')
         self.symbol_choices = {''}
@@ -157,16 +196,15 @@ class GuiOptions(tk.ttk.Frame):
         self.style.theme_use("default")
         self.style.configure('My.TFrame', background='lightsteelblue')
 
-
         date_filter_container = tk.ttk.Frame(tool_bar, style='My.TFrame')
         date_filter_container.pack(fill=tk.X, side=tk.LEFT, expand=False)
-        check_box = tk.Checkbutton( date_filter_container,
-                                        text="Date Filter",
-                                        variable=self.is_date_filter_on,
-                                        command=self.toggle_date_filter,
-                                        bg='lightsteelblue')
-                                        # style='My.TFrame')
-        check_box.pack(padx=10,side=tk.LEFT)
+        check_box = tk.Checkbutton(date_filter_container,
+                                   text="Date Filter",
+                                   variable=self.is_date_filter_on,
+                                   command=self.toggle_date_filter,
+                                   bg='lightsteelblue')
+        # style='My.TFrame')
+        check_box.pack(padx=10, side=tk.LEFT)
 
         start_date_container = tk.ttk.Frame(date_filter_container, style='My.TFrame')
         start_date_container.pack(fill=tk.X, side=tk.LEFT, expand=True)
@@ -187,6 +225,7 @@ class GuiOptions(tk.ttk.Frame):
                                      foreground='white', borderwidth=2, year=2020)
         self.end_cal.pack(side=tk.BOTTOM, padx=5, pady=5)
         self.end_cal.bind('<<DateEntrySelected>>', self.end_date_changed)
+
 
 def main():
     root = tk.Tk()

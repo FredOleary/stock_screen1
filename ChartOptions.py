@@ -14,6 +14,7 @@ of 'jagged stained glass' effect.
 # from matplotlib.collections import PatchCollection
 import math
 import matplotlib.pyplot as plt
+import matplotlib.ticker as ticker
 # noinspection SpellCheckingInspection
 # from matplotlib import colors as mcolors
 import numpy as np
@@ -23,6 +24,7 @@ import datetime
 import matplotlib.dates as mdates
 from matplotlib.colors import Normalize
 import matplotlib.cm as cm
+import pandas as pd
 from DbFinance import FinanceDB
 
 
@@ -93,11 +95,16 @@ class ChartOptions:
 
     # noinspection SpellCheckingInspection
     def chart_option(self, symbol: str, put_call: str, expiration_date: datetime.datetime,
-                     x_dates: np.ndarray, y_strikes: np.ndarray, z_price: np.ndarray) -> None:
+                     x_dates_in: np.ndarray, y_strikes: np.ndarray, z_price: np.ndarray) -> None:
 
-        x_dates = mdates.date2num(x_dates)
+        def format_date(x, pos=None):
+            thisind = np.clip(int(x + 0.5), 0, len(x_dates_in) - 1)
+            return pd.to_datetime(x_dates_in[thisind]).strftime('%Y-%m-%d')
 
-        x, y = np.meshgrid(x_dates, y_strikes)
+        x_dates = mdates.date2num(x_dates_in)
+        indicies = np.arange(len(x_dates_in))
+
+        x, y = np.meshgrid(indicies, y_strikes)
         # foo = np.linspace(1, len(x_dates), len(x_dates))
         # x, y = np.meshgrid(foo, y_strikes)
         z = z_price.transpose()
@@ -114,8 +121,9 @@ class ChartOptions:
         mappable.set_clim(math.floor(min), math.ceil(max))
         fig.colorbar(mappable, shrink=0.9, aspect=5)
 
-        date_format = mdates.DateFormatter('%D %H:%M')
-        ax.xaxis.set_major_formatter(date_format)
+        # date_format = mdates.DateFormatter('%D %H:%M')
+        # ax.xaxis.set_major_formatter(date_format)
+        ax.xaxis.set_major_formatter(ticker.FuncFormatter(format_date))
 
         ax.set_xlabel('Date/Time')
         ax.set_ylabel('Strike Price')
