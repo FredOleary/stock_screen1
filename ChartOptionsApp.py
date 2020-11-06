@@ -39,7 +39,7 @@ def chart_options():
 
                 x_dates, y_strikes, z_price = chart.prepare_options(options_db, symbol_row["symbol"],
                                                               row["option_expire_id"], put_call="CALL")
-                chart.chart_option(symbol_row["symbol"], "Call", row["expire_date"], x_dates, y_strikes, z_price)
+                chart.surface_chart_option(symbol_row["symbol"], "Call", row["expire_date"], x_dates, y_strikes, z_price)
 
     plt.show()
 

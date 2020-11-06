@@ -18,7 +18,8 @@ class GuiOptions(tk.ttk.Frame):
     def __init__(self):
         super().__init__()
         self.close_button = None
-        self.chart_button = None
+        self.surface_chart_button = None
+        self.line_chart_button = None
         self.status_label = None
         self.symbol_var = tk.StringVar(self)
         self.expiration_var = tk.StringVar(self)
@@ -56,25 +57,48 @@ class GuiOptions(tk.ttk.Frame):
         sys.exit()
 
     # noinspection PyUnusedLocal
-    def create_chart(self, event):
+    def create_line_chart(self, event):
         self.close_button.focus_force()
         self.status_var.set("Creating chart...")
         self.update()
         self.update_idletasks()
 
-        chart = ChartOptions()
-        row = self.shadow_expiration[self.expiration_var.get()]
+        if bool(self.shadow_expiration):
+            chart = ChartOptions()
+            row = self.shadow_expiration[self.expiration_var.get()]
 
-        x_dates, y_strikes, z_price = chart.prepare_options(self.options_db, self.symbol_var.get(),
-                                                            row["option_expire_id"], put_call="CALL",
-                                                            start_date=self.start_date,
-                                                            end_date=self.end_date)
-        if x_dates is not None:
-            chart.chart_option(self.symbol_var.get(), "Call", row["expire_date"], x_dates, y_strikes, z_price)
-            plt.show()
-            self.status_var.set("Done")
-        else:
-            self.status_var.set("No data available")
+            x_dates, y_strikes, z_price = chart.prepare_options(self.options_db, self.symbol_var.get(),
+                                                                row["option_expire_id"], put_call="CALL",
+                                                                start_date=self.start_date,
+                                                                end_date=self.end_date)
+            if x_dates is not None:
+                chart.line_chart_option(self.symbol_var.get(), "Call", row["expire_date"], x_dates, y_strikes, z_price)
+                plt.show()
+                self.status_var.set("Done")
+            else:
+                self.status_var.set("No data available")
+
+    # noinspection PyUnusedLocal
+    def create_surface_chart(self, event):
+        self.close_button.focus_force()
+        self.status_var.set("Creating chart...")
+        self.update()
+        self.update_idletasks()
+
+        if bool(self.shadow_expiration):
+            chart = ChartOptions()
+            row = self.shadow_expiration[self.expiration_var.get()]
+
+            x_dates, y_strikes, z_price = chart.prepare_options(self.options_db, self.symbol_var.get(),
+                                                                row["option_expire_id"], put_call="CALL",
+                                                                start_date=self.start_date,
+                                                                end_date=self.end_date)
+            if x_dates is not None:
+                chart.surface_chart_option(self.symbol_var.get(), "Call", row["expire_date"], x_dates, y_strikes, z_price)
+                plt.show()
+                self.status_var.set("Done")
+            else:
+                self.status_var.set("No data available")
 
     def clear_symbol_menu(self):
         self.symbol_var.set('')
@@ -167,9 +191,11 @@ class GuiOptions(tk.ttk.Frame):
 
     def update_chart_button_enable(self):
         if not self.symbol_var.get() or not self.expiration_var.get():
-            self.chart_button.config(state='disabled')
+            self.surface_chart_button.config(state='disabled')
+            self.line_chart_button.config(state='disabled')
         else:
-            self.chart_button.config(state='normal')
+            self.surface_chart_button.config(state='normal')
+            self.line_chart_button.config(state='normal')
 
     def init_ui(self):
         self.master.title("Options")
@@ -184,9 +210,13 @@ class GuiOptions(tk.ttk.Frame):
         self.close_button.pack(side=tk.RIGHT, padx=5, pady=5)
         self.close_button.bind('<Button-1>', self.quit_app)
 
-        self.chart_button = tk.ttk.Button(tool_bar, text="Chart")
-        self.chart_button.pack(side=tk.LEFT, padx=5, pady=5)
-        self.chart_button.bind('<Button-1>', self.create_chart)
+        self.line_chart_button = tk.ttk.Button(tool_bar, text="Line Chart")
+        self.line_chart_button.pack(side=tk.LEFT, padx=5, pady=5)
+        self.line_chart_button.bind('<Button-1>', self.create_line_chart)
+
+        self.surface_chart_button = tk.ttk.Button(tool_bar, text="Surface Chart")
+        self.surface_chart_button.pack(side=tk.LEFT, padx=5, pady=5)
+        self.surface_chart_button.bind('<Button-1>', self.create_surface_chart)
 
         self.symbol_var.set('')
         self.symbol_var.trace('w', self.symbol_selection_event)
