@@ -20,15 +20,25 @@ import numpy as np
 import datetime
 # noinspection SpellCheckingInspection
 import matplotlib.cm as cm
+import matplotlib.widgets as widgets
 import pandas as pd
 from DbFinance import FinanceDB
 
 
 class ChartOptions:
-    @staticmethod
-    def prepare_options(options_db: FinanceDB, symbol: str, options_for_expiration_key: int, put_call: str,
-                        start_date: datetime.datetime = None, end_date: datetime.datetime = None) -> \
-            (np.ndarray, np.ndarray, np.ndarray):
+    def __init__(self):
+        self.line_min_readings_for_strike = 5  # Minimum no of readings for a strike for line to be drawn
+        self.max_no_strike_lines_in_line_chart = 10  # Approx maximum no of strike lines
+        self.show_all_strikes = True
+        self.on_off_button = None
+        self.stock_price = None
+        self.use_extrinsic_value = True
+        self.x_dates = None
+        self.y_strikes = None
+        self.z_price = None
+
+    def prepare_options(self, options_db: FinanceDB, symbol: str, options_for_expiration_key: int, put_call: str,
+                        start_date: datetime.datetime = None, end_date: datetime.datetime = None) -> bool:
         """
         X Coordinate is Time data,
         Y Coordinate is the array of strike prices
@@ -45,7 +55,7 @@ class ChartOptions:
                         # Looks like some kind of hiccup...
                         result = math.nan
                     else:
-                        if option_row["current_value"] > option_row["strike"]:
+                        if option_row["current_value"] > option_row["strike"] and self.use_extrinsic_value is True:
                             intrinsic_value = option_row["current_value"] - option_row["strike"]
                             result = extrinsic_value - intrinsic_value
                         else:
@@ -66,44 +76,34 @@ class ChartOptions:
         df_dates_and_stock_price = options_db.get_date_times_for_expiration_df(
             symbol, options_for_expiration_key, start_date, end_date)
         if df_dates_and_stock_price is not None:
-            x_dates = df_dates_and_stock_price["datetime"].to_numpy()
+            self.x_dates = df_dates_and_stock_price["datetime"].to_numpy()
             stock_price_ids = df_dates_and_stock_price["stock_price_id"].to_numpy()
-
+            self.stock_price = df_dates_and_stock_price["price"].to_numpy()
             df_strikes = options_db.get_unique_strikes_for_expiration(options_for_expiration_key, put_call)
 
-            y_strikes = df_strikes["strike"].to_numpy()
+            self.y_strikes = df_strikes["strike"].to_numpy()
             options_for_expiration = options_db.get_all_options_for_expiration(options_for_expiration_key,
                                                                                put_call=put_call)
-
-            z_price = np.full((x_dates.size, y_strikes.size), math.nan, dtype=float)
+            self.z_price = np.full((self.x_dates.size, self.y_strikes.size), math.nan, dtype=float)
             stock_price_id_map = create_index_map(stock_price_ids)
-            y_strike_map = create_index_map(y_strikes)
+            self.y_strike_map = create_index_map(self.y_strikes)
 
             for index, row in options_for_expiration.iterrows():
                 if row["stock_price_id"] in stock_price_id_map:
                     value = get_option_value(row)
-                    z_price[stock_price_id_map[row["stock_price_id"]]][
-                        y_strike_map[row["strike"]]] = value
-
-            return x_dates, y_strikes, z_price
+                    self.z_price[stock_price_id_map[row["stock_price_id"]]][
+                        self.y_strike_map[row["strike"]]] = value
+            return True
         else:
-            return None, None, None
+            return False
 
     # noinspection SpellCheckingInspection
-    @staticmethod
-    def surface_chart_option(symbol: str, put_call: str, expiration_date: datetime.datetime,
-                             x_dates_in: np.ndarray, y_strikes: np.ndarray, z_price: np.ndarray) -> None:
+    def surface_chart_option(self, symbol: str, put_call: str, expiration_date: datetime.datetime) -> None:
 
-        # noinspection PyUnusedLocal
-        # def format_date(x_in, pos=None):
-        #     index = np.clip(int(x_in + 0.5), 0, len(x_dates_in) - 1)
-        #     return pd.to_datetime(x_dates_in[index]).strftime('%Y-%m-%d')
+        indicies = np.arange(len(self.x_dates))
 
-        # x_dates = mdates.date2num(x_dates_in)
-        indicies = np.arange(len(x_dates_in))
-
-        x, y = np.meshgrid(indicies, y_strikes)
-        z = z_price.transpose()
+        x, y = np.meshgrid(indicies, self.y_strikes)
+        z = self.z_price.transpose()
 
         fig = plt.figure(figsize=(10, 6))
         ax = fig.add_subplot(111, projection='3d')
@@ -117,56 +117,39 @@ class ChartOptions:
         mappable.set_clim(math.floor(min_value), math.ceil(max_value))
         fig.colorbar(mappable, shrink=0.9, aspect=5)
 
-        ChartOptions.add_x_axis_and_title(ax, x_dates_in, expiration_date, put_call, symbol, True)
-        # ax.xaxis.set_major_formatter(ticker.FuncFormatter(format_date))
-        #
-        # ax.set_xlabel('Date/Time')
-        # ax.set_ylabel('Strike Price')
-        # ax.set_zlabel('Option Price')
-        #
-        # days_to_expire = expiration_date - datetime.datetime.now()
-        # delta_days = days_to_expire.days
-        # if delta_days > 0:
-        #     days_to_expiration = "{0} days to expiration".format(delta_days)
-        # else:
-        #     days_to_expiration = "Expired"
-        #
-        # plt.title("{0} chain for {1}, expires {2}. ({3})".
-        #           format(put_call, symbol, expiration_date.strftime("%Y-%m-%d"), days_to_expiration))
+        self.add_x_axis_and_title(ax, self.x_dates, expiration_date, put_call, symbol, True)
 
-    @staticmethod
-    def line_chart_option(symbol: str, put_call: str, expiration_date: datetime.datetime,
-                          x_dates_in: np.ndarray, y_strikes: np.ndarray, z_price: np.ndarray) -> None:
-        # # noinspection PyUnusedLocal
-        # def format_date(x_in, pos=None):
-        #     index = np.clip(int(x_in + 0.5), 0, len(x_dates_in) - 1)
-        #     return pd.to_datetime(x_dates_in[index]).strftime('%Y-%m-%d')
-
-        indicies = np.arange(len(x_dates_in))
+    def line_chart_option(self, symbol: str, put_call: str, expiration_date: datetime.datetime) -> None:
+        indicies = np.arange(len(self.x_dates))
         fig = plt.figure(figsize=(10, 6))
         strike_lines = []
         strike_dictionary = dict()
 
         ax = fig.add_subplot(111)
+
+        # ax2 = ax.twinx()
+        # ax2.set_ylabel("Stock price", color="black")
+        # ax2.plot(indicies, self.stock_price)
+        # plt.sca(ax)
+
         # count number of strikes that have prices
         non_zero_strike_count = 0
-        for i in range(len(y_strikes)):
-            column = z_price[:, i]
+        for i in range(len(self.y_strikes)):
+            column = self.z_price[:, i]
             non_zeros = column[~np.isnan(column)]
             if len(non_zeros) > 0:
-                non_zero_strike_count +=1
+                non_zero_strike_count += 1
 
         decimation_factor = 1
-        if non_zero_strike_count > 0:
-            # TODO - Make these constants variables....
-            decimation_factor = int( math.ceil(non_zero_strike_count/10))
+        if non_zero_strike_count >= self.line_min_readings_for_strike:
+            decimation_factor = int(math.ceil(non_zero_strike_count / self.max_no_strike_lines_in_line_chart))
 
-        for i in range(len(y_strikes)):
-            column = z_price[:, i]
+        for i in range(len(self.y_strikes)):
+            column = self.z_price[:, i]
             non_zeros = column[~np.isnan(column)]
-            if len(non_zeros) > 0:
-                if i % decimation_factor == 0:
-                    strike_line, = ax.plot(indicies, z_price[:, i], label="{0}".format(y_strikes[i]))
+            if len(non_zeros) >= self.line_min_readings_for_strike:
+                if i % decimation_factor == 0 or self.y_strikes[i] % 10 == 0:
+                    strike_line, = ax.plot(indicies, self.z_price[:, i], label="{0}".format(self.y_strikes[i]))
                     strike_lines.append(strike_line)
 
         legend = ax.legend(loc='upper left')
@@ -176,9 +159,9 @@ class ChartOptions:
             legend_line.set_picker(5)  # 5 pts tolerance
             strike_dictionary[legend_line] = orig_line
 
-        ChartOptions.add_x_axis_and_title(ax, x_dates_in, expiration_date, put_call, symbol, False)
+        self.add_x_axis_and_title(ax, self.x_dates, expiration_date, put_call, symbol, False)
 
-        def onpick(event):
+        def on_pick(event):
             # on the pick event, find the orig line corresponding to the
             # legend proxy line, and toggle the visibility
             legend_line = event.artist
@@ -193,15 +176,28 @@ class ChartOptions:
                 legend_line.set_alpha(0.2)
             fig.canvas.draw()
 
-        fig.canvas.mpl_connect('pick_event', onpick)
+        def toggle_strikes(event):
+            if self.show_all_strikes:
+                self.show_all_strikes = False
+                self.on_off_button.label.set_text("Show All Strikes")
+                for legend_key, strike_value in strike_dictionary.items():
+                    legend_key.set_alpha(0.2)
+                    strike_value.set_visible(False)
 
-        # plt.legend()
-        # plt.plot(indicies, z_price[:,1], label="Strike 2")
-        # plt.plot(indicies, z_price[:,2], label="Strike 3")
-        # plt.plot(indicies, z_price[:,int(len(y_strikes)/2)], label="Strike xxx")
+            else:
+                self.show_all_strikes = True
+                self.on_off_button.label.set_text("Hide All Strikes")
+                for legend_key, strike_value in strike_dictionary.items():
+                    legend_key.set_alpha(1.0)
+                    strike_value.set_visible(True)
 
-    @staticmethod
-    def add_x_axis_and_title(ax, x_dates, expiration_date, put_call, symbol, has_zLabel):
+        fig.canvas.mpl_connect('pick_event', on_pick)
+
+        ax_toggle = plt.axes([0.01, 0.9, 0.15, 0.075])
+        self.on_off_button = widgets.Button(ax_toggle, "Hide All Strikes")
+        self.on_off_button.on_clicked(toggle_strikes)
+
+    def add_x_axis_and_title(self, ax, x_dates, expiration_date, put_call, symbol, has_zlabel):
         def format_date(x_in, pos=None):
             index = np.clip(int(x_in + 0.5), 0, len(x_dates) - 1)
             return pd.to_datetime(x_dates[index]).strftime('%Y-%m-%d')
@@ -210,12 +206,11 @@ class ChartOptions:
 
         ax.set_xlabel('Date/Time')
 
-        if has_zLabel:
+        if has_zlabel:
             ax.set_zlabel('Extrinsic value')
             ax.set_ylabel('Strike Price')
         else:
             ax.set_ylabel('Extrinsic value')
-
 
         days_to_expire = expiration_date - datetime.datetime.now()
         delta_days = days_to_expire.days
@@ -224,5 +219,9 @@ class ChartOptions:
         else:
             days_to_expiration = "Expired"
 
-        plt.title("{0} chain for {1}, expires {2}. ({3})".
-                  format(put_call, symbol, expiration_date.strftime("%Y-%m-%d"), days_to_expiration))
+        current_price = "Current Price: N/A"
+        if self.stock_price is not None and len(self.stock_price) > 0:
+            current_price = "Current Price: {0}".format(self.stock_price[len(self.stock_price) - 1])
+        plt.title("{0} chain for {1}, expires {2}. ({3}), {4}".
+                  format(put_call, symbol, expiration_date.strftime("%Y-%m-%d"),
+                         days_to_expiration, current_price))

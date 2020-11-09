@@ -67,12 +67,12 @@ class GuiOptions(tk.ttk.Frame):
             chart = ChartOptions()
             row = self.shadow_expiration[self.expiration_var.get()]
 
-            x_dates, y_strikes, z_price = chart.prepare_options(self.options_db, self.symbol_var.get(),
+            success = chart.prepare_options(self.options_db, self.symbol_var.get(),
                                                                 row["option_expire_id"], put_call="CALL",
                                                                 start_date=self.start_date,
                                                                 end_date=self.end_date)
-            if x_dates is not None:
-                chart.line_chart_option(self.symbol_var.get(), "Call", row["expire_date"], x_dates, y_strikes, z_price)
+            if success:
+                chart.line_chart_option(self.symbol_var.get(), "Call", row["expire_date"])
                 plt.show()
                 self.status_var.set("Done")
             else:
@@ -89,12 +89,12 @@ class GuiOptions(tk.ttk.Frame):
             chart = ChartOptions()
             row = self.shadow_expiration[self.expiration_var.get()]
 
-            x_dates, y_strikes, z_price = chart.prepare_options(self.options_db, self.symbol_var.get(),
+            success = chart.prepare_options(self.options_db, self.symbol_var.get(),
                                                                 row["option_expire_id"], put_call="CALL",
                                                                 start_date=self.start_date,
                                                                 end_date=self.end_date)
-            if x_dates is not None:
-                chart.surface_chart_option(self.symbol_var.get(), "Call", row["expire_date"], x_dates, y_strikes, z_price)
+            if success:
+                chart.surface_chart_option(self.symbol_var.get(), "Call", row["expire_date"])
                 plt.show()
                 self.status_var.set("Done")
             else:

@@ -26,6 +26,7 @@ import matplotlib.cm as cm
 from DbFinance import FinanceDB
 from ChartOptions import ChartOptions
 
+
 def chart_options():
     options_db = FinanceDB()
     options_db.initialize()
@@ -37,9 +38,9 @@ def chart_options():
             if row["expire_date"] > datetime.datetime.now():
                 chart = ChartOptions()
 
-                x_dates, y_strikes, z_price = chart.prepare_options(options_db, symbol_row["symbol"],
+                success = chart.prepare_options(options_db, symbol_row["symbol"],
                                                               row["option_expire_id"], put_call="CALL")
-                chart.surface_chart_option(symbol_row["symbol"], "Call", row["expire_date"], x_dates, y_strikes, z_price)
+                chart.surface_chart_option(symbol_row["symbol"], "Call", row["expire_date"])
 
     plt.show()
 
