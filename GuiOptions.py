@@ -32,6 +32,7 @@ class GuiOptions(tk.ttk.Frame):
         self.start_cal = None
         self.end_cal = None
         self.status_var = tk.StringVar(self)
+        self.bid_extrinsic_value = tk.IntVar(self)
 
         self.init_ui()
         self.clear_symbol_menu()
@@ -40,6 +41,8 @@ class GuiOptions(tk.ttk.Frame):
         self.update_chart_button_enable()
         self.options_db = FinanceDB()
         self.get_symbols()
+        self.extrinsic_value_radio = None
+        self.bid_value_radio = None
 
     def get_symbols(self):
         self.options_db.initialize()
@@ -67,10 +70,12 @@ class GuiOptions(tk.ttk.Frame):
             chart = ChartOptions()
             row = self.shadow_expiration[self.expiration_var.get()]
 
-            success = chart.prepare_options(self.options_db, self.symbol_var.get(),
-                                                                row["option_expire_id"], put_call="CALL",
-                                                                start_date=self.start_date,
-                                                                end_date=self.end_date)
+            success = chart.prepare_options(self.options_db,
+                                            self.symbol_var.get(),
+                                            row["option_expire_id"], put_call="CALL",
+                                            start_date=self.start_date,
+                                            end_date=self.end_date,
+                                            option_type='extrinsic' if self.bid_extrinsic_value.get() == 1 else 'bid')
             if success:
                 chart.line_chart_option(self.symbol_var.get(), "Call", row["expire_date"])
                 plt.show()
@@ -89,10 +94,12 @@ class GuiOptions(tk.ttk.Frame):
             chart = ChartOptions()
             row = self.shadow_expiration[self.expiration_var.get()]
 
-            success = chart.prepare_options(self.options_db, self.symbol_var.get(),
-                                                                row["option_expire_id"], put_call="CALL",
-                                                                start_date=self.start_date,
-                                                                end_date=self.end_date)
+            success = chart.prepare_options(self.options_db,
+                                            self.symbol_var.get(),
+                                            row["option_expire_id"], put_call="CALL",
+                                            start_date=self.start_date,
+                                            end_date=self.end_date,
+                                            option_type ='extrinsic' if self.bid_extrinsic_value.get() == 1 else 'bid')
             if success:
                 chart.surface_chart_option(self.symbol_var.get(), "Call", row["expire_date"])
                 plt.show()
@@ -138,27 +145,6 @@ class GuiOptions(tk.ttk.Frame):
     # noinspection PyUnusedLocal
     def expiration_var_selection_event(self, *args):
         self.update_chart_button_enable()
-        # if not self.expiration_var.get():
-        #     pass
-        # else:
-        #     print("expiration_var_selection_event", self.expiration_var.get())
-        # Note - app crashes if we plot charts with focus on a DateEntry widget
-        # self.close_button.focus_force()
-        # self.update()
-        # self.update_idletasks()
-        #
-        # chart = ChartOptions()
-        # row = self.shadow_expiration[self.expiration_var.get()]
-        #
-        # x_dates, y_strikes, z_price = chart.prepare_options(self.options_db, self.symbol_var.get(),
-        #                                                     row["option_expire_id"], put_call="CALL",
-        #                                                     start_date=self.start_date,
-        #                                                     end_date=self.end_date)
-        # if x_dates is not None:
-        #     chart.chart_option(self.symbol_var.get(), "Call", row["expire_date"], x_dates, y_strikes, z_price)
-        #     plt.show()
-        # else:
-        #     print("No data available")
 
     # noinspection PyUnusedLocal
     def start_date_changed(self, args):
@@ -268,13 +254,42 @@ class GuiOptions(tk.ttk.Frame):
         self.end_cal.pack(side=tk.BOTTOM, padx=5, pady=5)
         self.end_cal.bind('<<DateEntrySelected>>', self.end_date_changed)
 
+        # poo = Style()
+        # poo.theme_use("default")
+        # poo.configure('My.TFrame', background='lightgoldenrodyellow')
+
+        bid_extrinsic_container = tk.ttk.Frame(tool_bar, style='My.TFrame')
+        bid_extrinsic_container.pack(fill=tk.BOTH, side=tk.LEFT, expand=False)
+
+        self.bid_extrinsic_value.set(1)
+
+        self.extrinsic_value_radio = tk.Radiobutton(bid_extrinsic_container,
+                                                    text="Extrinsic value",
+                                                    padx=20,
+                                                    variable=self.bid_extrinsic_value,
+                                                    value=1,
+                                                    background="lightsteelblue")
+        self.extrinsic_value_radio.pack(anchor=tk.W)
+        self.bid_value_radio = tk.Radiobutton(bid_extrinsic_container,
+                                              text="Bid Value",
+                                              padx=20,
+                                              variable=self.bid_extrinsic_value,
+                                              value=2,
+                                              background="lightsteelblue")
+        self.bid_value_radio.pack(anchor=tk.W)
+        self.bid_extrinsic_value.set(1)
+        # import time
+        # time.sleep(1)
+
         self.status_var.set("Status")
         self.status_label = tk.ttk.Label(self, textvariable=self.status_var, background="lightsteelblue")
         self.status_label.pack(side=tk.BOTTOM, fill=tk.X, expand=False, ipadx=10, ipady=5)
 
+
+
 def main():
     root = tk.Tk()
-    root.geometry("800x600+300+300")
+    root.geometry("1000x700+300+300")
     GuiOptions()
     root.mainloop()
 

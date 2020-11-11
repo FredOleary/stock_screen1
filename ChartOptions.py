@@ -32,13 +32,13 @@ class ChartOptions:
         self.show_all_strikes = True
         self.on_off_button = None
         self.stock_price = None
-        self.use_extrinsic_value = True
         self.x_dates = None
         self.y_strikes = None
         self.z_price = None
 
     def prepare_options(self, options_db: FinanceDB, symbol: str, options_for_expiration_key: int, put_call: str,
-                        start_date: datetime.datetime = None, end_date: datetime.datetime = None) -> bool:
+                        start_date: datetime.datetime = None, end_date: datetime.datetime = None,
+                        option_type: str = 'extrinsic') -> bool:
         """
         X Coordinate is Time data,
         Y Coordinate is the array of strike prices
@@ -55,7 +55,7 @@ class ChartOptions:
                         # Looks like some kind of hiccup...
                         result = math.nan
                     else:
-                        if option_row["current_value"] > option_row["strike"] and self.use_extrinsic_value is True:
+                        if option_row["current_value"] > option_row["strike"] and option_type == "extrinsic":
                             intrinsic_value = option_row["current_value"] - option_row["strike"]
                             result = extrinsic_value - intrinsic_value
                         else:
