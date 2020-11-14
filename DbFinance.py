@@ -205,6 +205,22 @@ class FinanceDB:
                                                  "bid", "ask", "current_value"])
         return df
 
+    def get_strikes_for_expiration(self, option_expire_id: int, strike: float, put_call: str = None) -> pd.DataFrame:
+        cursor = self.connection.cursor()
+        query = "SELECT * FROM put_call_options where option_expire_id = ? and strike = ?"
+        args = [option_expire_id, strike]
+        if type is not None:
+            query = query + " AND put_call = ?"
+            args.append(put_call)
+        cursor.execute(query,args)
+
+        rows = cursor.fetchall()
+        np_rows = np.array(rows)
+        df_data = np_rows[:, [1, 4, 5, 6, 7, 14]]
+        df = pd.DataFrame(data=df_data, columns=["stock_price_id", "strike", "lastPrice",
+                                                 "bid", "ask", "current_value"])
+        return df
+
     def get_date_times_for_expiration_df(self, symbol: str, option_expire_id: int,
                                          start_date: datetime.datetime = None,
                                          end_date: datetime.datetime = None,) -> pd.DataFrame:

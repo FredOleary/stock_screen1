@@ -20,15 +20,18 @@ class GuiOptions(tk.ttk.Frame):
         self.close_button = None
         self.surface_chart_button = None
         self.line_chart_button = None
+        self.strike_chart_button = None
         self.status_label = None
         self.symbol_var = tk.StringVar(self)
         self.expiration_var = tk.StringVar(self)
+        self.strike_var = tk.StringVar(self)
         self.is_date_filter_on = tk.IntVar(value=0)
         self.start_date = None
         self.end_date = None
         self.shadow_expiration = dict()
         self.popup_symbol_menu = None
         self.popup_expiration_menu = None
+        self.popup_strike_menu = None
         self.start_cal = None
         self.end_cal = None
         self.status_var = tk.StringVar(self)
@@ -37,6 +40,7 @@ class GuiOptions(tk.ttk.Frame):
         self.init_ui()
         self.clear_symbol_menu()
         self.clear_expiration_menu()
+        self.clear_strike_menu()
         self.toggle_date_filter()
         self.update_chart_button_enable()
         self.options_db = FinanceDB()
@@ -99,9 +103,33 @@ class GuiOptions(tk.ttk.Frame):
                                             row["option_expire_id"], put_call="CALL",
                                             start_date=self.start_date,
                                             end_date=self.end_date,
-                                            option_type ='extrinsic' if self.bid_extrinsic_value.get() == 1 else 'bid')
+                                            option_type='extrinsic' if self.bid_extrinsic_value.get() == 1 else 'bid')
             if success:
                 chart.surface_chart_option(self.symbol_var.get(), "Call", row["expire_date"])
+                plt.show()
+                self.status_var.set("Done")
+            else:
+                self.status_var.set("No data available")
+
+    def create_strike_chart(self, event):
+        self.close_button.focus_force()
+        self.status_var.set("Creating strike chart...")
+        self.update()
+        self.update_idletasks()
+
+        if bool(self.shadow_expiration) and self.strike_var.get() != "":
+            chart = ChartOptions()
+            row = self.shadow_expiration[self.expiration_var.get()]
+            strike = self.strike_var.get()
+            success = chart.create_strike_chart(self.options_db,
+                                                self.symbol_var.get(),
+                                                row["option_expire_id"],
+                                                strike,
+                                                put_call="CALL",
+                                                start_date=self.start_date,
+                                                end_date=self.end_date,
+                                                option_type='extrinsic' if self.bid_extrinsic_value.get() == 1 else 'bid')
+            if success:
                 plt.show()
                 self.status_var.set("Done")
             else:
@@ -142,8 +170,31 @@ class GuiOptions(tk.ttk.Frame):
             self.popup_expiration_menu['menu'].add_command(label=choice,
                                                            command=lambda value=choice: self.expiration_var.set(value))
 
+    def clear_strike_menu(self):
+        self.strike_var.set('')
+        self.popup_strike_menu['menu'].delete(0, 'end')
+
+    def update_strike(self, choices):
+        for choice in choices:
+            self.popup_strike_menu['menu'].add_command(label=choice,
+                                                       command=lambda value=choice: self.strike_var.set(value))
+
     # noinspection PyUnusedLocal
     def expiration_var_selection_event(self, *args):
+        self.update_chart_button_enable()
+        if not self.expiration_var.get():
+            pass
+        else:
+            self.clear_strike_menu()
+            row = self.shadow_expiration[self.expiration_var.get()]
+
+            df_strikes = self.options_db.get_unique_strikes_for_expiration(row["option_expire_id"], put_call="CALL")
+            strike_set = set()
+            for index, row in df_strikes.iterrows():
+                strike_set.add(row["strike"])
+            self.update_strike(strike_set)
+
+    def strike_var_selection_event(self, *args):
         self.update_chart_button_enable()
 
     # noinspection PyUnusedLocal
@@ -179,9 +230,14 @@ class GuiOptions(tk.ttk.Frame):
         if not self.symbol_var.get() or not self.expiration_var.get():
             self.surface_chart_button.config(state='disabled')
             self.line_chart_button.config(state='disabled')
+            self.strike_chart_button.config(state='disabled')
         else:
             self.surface_chart_button.config(state='normal')
             self.line_chart_button.config(state='normal')
+            if not self.strike_var.get():
+                self.strike_chart_button.config(state='disabled')
+            else:
+                self.strike_chart_button.config(state='normal')
 
     def init_ui(self):
         self.master.title("Options")
@@ -204,6 +260,10 @@ class GuiOptions(tk.ttk.Frame):
         self.surface_chart_button.pack(side=tk.LEFT, padx=5, pady=5)
         self.surface_chart_button.bind('<Button-1>', self.create_surface_chart)
 
+        self.strike_chart_button = tk.ttk.Button(tool_bar, text="Strike Chart")
+        self.strike_chart_button.pack(side=tk.LEFT, padx=5, pady=5)
+        self.strike_chart_button.bind('<Button-1>', self.create_strike_chart)
+
         self.symbol_var.set('')
         self.symbol_var.trace('w', self.symbol_selection_event)
 
@@ -219,6 +279,14 @@ class GuiOptions(tk.ttk.Frame):
                                                    *{''})
         self.popup_expiration_menu.config(width=16)
         self.popup_expiration_menu.pack(side=tk.LEFT, padx=5, pady=5)
+
+        self.strike_var.set('')
+        self.strike_var.trace('w', self.strike_var_selection_event)
+
+        self.popup_strike_menu = tk.OptionMenu(tool_bar, self.strike_var,
+                                               *{''})
+        self.popup_strike_menu.config(width=7)
+        self.popup_strike_menu.pack(side=tk.LEFT, padx=5, pady=5)
 
         tool_bar_style = Style()
         tool_bar_style.theme_use("default")
@@ -286,10 +354,9 @@ class GuiOptions(tk.ttk.Frame):
         self.status_label.pack(side=tk.BOTTOM, fill=tk.X, expand=False, ipadx=10, ipady=5)
 
 
-
 def main():
     root = tk.Tk()
-    root.geometry("1000x700+300+300")
+    root.geometry("1200x800+300+300")
     GuiOptions()
     root.mainloop()
 
