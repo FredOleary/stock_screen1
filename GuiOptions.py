@@ -125,6 +125,7 @@ class GuiOptions(tk.ttk.Frame):
                                                 self.symbol_var.get(),
                                                 row["option_expire_id"],
                                                 strike,
+                                                row["expire_date"],
                                                 put_call="CALL",
                                                 start_date=self.start_date,
                                                 end_date=self.end_date,
@@ -189,10 +190,10 @@ class GuiOptions(tk.ttk.Frame):
             row = self.shadow_expiration[self.expiration_var.get()]
 
             df_strikes = self.options_db.get_unique_strikes_for_expiration(row["option_expire_id"], put_call="CALL")
-            strike_set = set()
+            strike_list= []
             for index, row in df_strikes.iterrows():
-                strike_set.add(row["strike"])
-            self.update_strike(strike_set)
+                strike_list.append(row["strike"])
+            self.update_strike(strike_list)
 
     def strike_var_selection_event(self, *args):
         self.update_chart_button_enable()

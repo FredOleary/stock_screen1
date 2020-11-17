@@ -42,16 +42,16 @@ class ChartOptions:
         extrinsic_value = option_row["bid"]
         if extrinsic_value is not None:
             if put_call == "CALL":
-                    # Calculate extrinsic value for call
+                # Calculate extrinsic value for call
                 if option_row['bid'] == 0 and option_row['ask' == 0]:
-                        # Looks like some kind of hiccup...
-                        result = math.nan
+                    # Looks like some kind of hiccup...
+                    result = math.nan
                 else:
                     if option_row["current_value"] > option_row["strike"] and option_type == "extrinsic":
                         intrinsic_value = option_row["current_value"] - option_row["strike"]
                         result = extrinsic_value - intrinsic_value
                     else:
-                         result = extrinsic_value
+                        result = extrinsic_value
             else:
                 pass
         return result
@@ -64,7 +64,6 @@ class ChartOptions:
         Y Coordinate is the array of strike prices
         Z Coordinate is the corresponding option price at each time/strike
         """
-
 
         def create_index_map(series):
             index_map = {}
@@ -201,8 +200,9 @@ class ChartOptions:
         self.on_off_button.on_clicked(toggle_strikes)
 
     def create_strike_chart(self, options_db: FinanceDB, symbol: str, options_for_expiration_key: int,
-                            strike: float, put_call: str, start_date: datetime.datetime = None,
-                            end_date: datetime.datetime = None, option_type: str = 'extrinsic') -> bool:
+                            strike: float, expiration_date: datetime.datetime, put_call: str,
+                            start_date: datetime.datetime = None, end_date: datetime.datetime = None,
+                            option_type: str = 'extrinsic') -> bool:
 
         def create_index_map(series):
             index_map = {}
@@ -221,8 +221,8 @@ class ChartOptions:
             stock_price_ids = df_dates_and_stock_price["stock_price_id"].to_numpy()
             stock_price = df_dates_and_stock_price["price"].to_numpy()
             strikes_for_expiration = options_db.get_strikes_for_expiration(options_for_expiration_key,
-                                                                            strike,
-                                                                            put_call=put_call)
+                                                                           strike,
+                                                                           put_call=put_call)
             y_strikes = np.empty(x_dates.size)
             # y_strikes = np.full((x_dates.size, 0), math.nan, dtype=float)
             y_strikes.fill(math.nan)
@@ -234,6 +234,21 @@ class ChartOptions:
                     y_strikes[stock_price_id_map[row["stock_price_id"]]] = value
             #         self.z_price[stock_price_id_map[row["stock_price_id"]]][
             #             self.y_strike_map[row["strike"]]] = value
+            indicies = np.arange(len(x_dates))
+            fig = plt.figure(figsize=(10, 6))
+
+            ax = fig.add_subplot(111)
+            strike_line, = ax.plot(indicies, y_strikes, label="{0}".format(strike))
+            legend = ax.legend(loc='upper left')
+            legend.get_frame().set_alpha(0.4)
+
+            self.add_x_axis_and_title(ax, x_dates, expiration_date, put_call, symbol, False)
+
+            ax2 = ax.twinx()
+            ax2.set_ylabel("Stock price", color="red")
+            ax2.plot(indicies, stock_price, color="red")
+            plt.sca(ax)
+
             return True
         else:
             return False
@@ -247,7 +262,7 @@ class ChartOptions:
             index = np.clip(int(x_in + 0.5), 0, len(x_dates) - 1)
             return pd.to_datetime(x_dates[index]).strftime(date_time_format)
 
-        num_days = ((x_dates[len(x_dates)-1] - x_dates[0]).astype('timedelta64[D]')).astype(int)
+        num_days = ((x_dates[len(x_dates) - 1] - x_dates[0]).astype('timedelta64[D]')).astype(int)
         ax.xaxis.set_major_formatter(ticker.FuncFormatter(format_date))
 
         ax.set_xlabel('Date/Time')
