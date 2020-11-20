@@ -23,6 +23,8 @@ import matplotlib.cm as cm
 import matplotlib.widgets as widgets
 import pandas as pd
 from DbFinance import FinanceDB
+import pytz
+from pytz import timezone
 
 
 class ChartOptions:
@@ -192,6 +194,7 @@ class ChartOptions:
                 for legend_key, strike_value in strike_dictionary.items():
                     legend_key.set_alpha(1.0)
                     strike_value.set_visible(True)
+            fig.canvas.draw()
 
         fig.canvas.mpl_connect('pick_event', on_pick)
 
@@ -260,12 +263,15 @@ class ChartOptions:
                 date_time_format = '%y-%m-%d:%H:%M'
 
             index = np.clip(int(x_in + 0.5), 0, len(x_dates) - 1)
-            return pd.to_datetime(x_dates[index]).strftime(date_time_format)
+            date_time = pd.to_datetime(x_dates[index])
+            date_time_with_tz = date_time.replace(tzinfo=pytz.UTC)
+            date_time_with_tz = date_time_with_tz.astimezone(timezone('US/Pacific'))
+            return date_time_with_tz.strftime(date_time_format)
 
         num_days = ((x_dates[len(x_dates) - 1] - x_dates[0]).astype('timedelta64[D]')).astype(int)
         ax.xaxis.set_major_formatter(ticker.FuncFormatter(format_date))
 
-        ax.set_xlabel('Date/Time')
+        ax.set_xlabel('Date/Time (PST)')
 
         if has_zlabel:
             ax.set_zlabel('Extrinsic value' if self.option_type == 'extrinsic' else 'Bid value')
