@@ -8,7 +8,8 @@ from WebFinance import FinanceWeb
 from DbFinance import FinanceDB
 from OptionsWatch import OptionsWatch
 
-UPDATE_RATE = 900   # 15 minutes/update
+UPDATE_RATE = 900  # 15 minutes/update
+
 
 def get_variance_and_mean(quote_list):
     volatility = np.sqrt(np.var(quote_list))
@@ -33,7 +34,9 @@ def filter_dates(first_date: object, data: []) -> []:
     return return_dates
 
 
+# noinspection SpellCheckingInspection
 def create_logger():
+    # noinspection SpellCheckingInspection
     log_format = "%(asctime)s %(levelname)s %(module)s - %(funcName)s: %(message)s"
     date_fmt = "%m-%d %H:%M"
 
@@ -70,12 +73,13 @@ def process_options():
 
         if len(sys.argv) > 1:
             if sys.argv[1] == "repeat":
-                logger.info("Sleeping for {delay} minutes".format(delay=UPDATE_RATE/60))
+                logger.info("Sleeping for {delay} minutes".format(delay=UPDATE_RATE / 60))
                 time.sleep(UPDATE_RATE)
             else:
                 repeat_get_quotes = False
         else:
             repeat_get_quotes = False
+
 
 if __name__ == '__main__':
     logging.info("Application started")

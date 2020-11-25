@@ -3,7 +3,8 @@ class OptionsWatch:
     def __init__(self):
         self.options_list = [
             {"symbol": "QQQ", "name": "Invesco QQQ"},
-            {"symbol": "MAR", "name": "Marriot"}
+            {"symbol": "MAR", "name": "Marriot"},
+            {"symbol": "TSLA", "name": "Tesla Motor"}
         ]
 
     def get_companies(self):

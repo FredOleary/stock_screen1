@@ -222,7 +222,7 @@ class ChartOptions:
         if df_dates_and_stock_price is not None:
             x_dates = df_dates_and_stock_price["datetime"].to_numpy()
             stock_price_ids = df_dates_and_stock_price["stock_price_id"].to_numpy()
-            stock_price = df_dates_and_stock_price["price"].to_numpy()
+            self.stock_price = df_dates_and_stock_price["price"].to_numpy()
             strikes_for_expiration = options_db.get_strikes_for_expiration(options_for_expiration_key,
                                                                            strike,
                                                                            put_call=put_call)
@@ -249,7 +249,7 @@ class ChartOptions:
 
             ax2 = ax.twinx()
             ax2.set_ylabel("Stock price", color="red")
-            ax2.plot(indicies, stock_price, color="red")
+            ax2.plot(indicies, self.stock_price, color="red")
             plt.sca(ax)
 
             return True
