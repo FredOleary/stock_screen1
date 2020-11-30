@@ -11,7 +11,8 @@ import datetime
 import tkcalendar as cal
 from DbFinance import FinanceDB
 from ChartOptions import ChartOptions
-
+from matplotlib.backends.backend_tkagg import (FigureCanvasTkAgg, NavigationToolbar2Tk)
+from matplotlib.figure import Figure
 
 class GuiOptions(tk.ttk.Frame):
 
@@ -22,6 +23,7 @@ class GuiOptions(tk.ttk.Frame):
         self.line_chart_button = None
         self.strike_chart_button = None
         self.status_label = None
+        self.plot_frame = None
         self.symbol_var = tk.StringVar(self)
         self.expiration_var = tk.StringVar(self)
         self.strike_var = tk.StringVar(self)
@@ -63,6 +65,10 @@ class GuiOptions(tk.ttk.Frame):
         print("Exit command")
         sys.exit()
 
+    def clear_plot_frame(self):
+        for widget in self.plot_frame.winfo_children():
+            widget.destroy()
+
     # noinspection PyUnusedLocal
     def create_line_chart(self, event):
         self.close_button.focus_force()
@@ -71,6 +77,10 @@ class GuiOptions(tk.ttk.Frame):
         self.update_idletasks()
 
         if bool(self.shadow_expiration):
+            self.clear_plot_frame()
+            fig = Figure(figsize=(10, 6))
+            canvas = FigureCanvasTkAgg(fig, master=self.plot_frame)
+
             chart = ChartOptions()
             row = self.shadow_expiration[self.expiration_var.get()]
 
@@ -81,8 +91,8 @@ class GuiOptions(tk.ttk.Frame):
                                             end_date=self.end_date,
                                             option_type='extrinsic' if self.bid_extrinsic_value.get() == 1 else 'bid')
             if success:
-                chart.line_chart_option(self.symbol_var.get(), "Call", row["expire_date"])
-                plt.show()
+                chart.line_chart_option(fig, self.symbol_var.get(), "Call", row["expire_date"])
+                self.show_figure(canvas)
                 self.status_var.set("Done")
             else:
                 self.status_var.set("No data available")
@@ -95,6 +105,10 @@ class GuiOptions(tk.ttk.Frame):
         self.update_idletasks()
 
         if bool(self.shadow_expiration):
+            self.clear_plot_frame()
+            fig = Figure(figsize=(10, 6))
+            canvas = FigureCanvasTkAgg(fig, master=self.plot_frame)
+
             chart = ChartOptions()
             row = self.shadow_expiration[self.expiration_var.get()]
 
@@ -105,8 +119,8 @@ class GuiOptions(tk.ttk.Frame):
                                             end_date=self.end_date,
                                             option_type='extrinsic' if self.bid_extrinsic_value.get() == 1 else 'bid')
             if success:
-                chart.surface_chart_option(self.symbol_var.get(), "Call", row["expire_date"])
-                plt.show()
+                chart.surface_chart_option(fig, self.symbol_var.get(), "Call", row["expire_date"])
+                self.show_figure(canvas)
                 self.status_var.set("Done")
             else:
                 self.status_var.set("No data available")
@@ -118,10 +132,14 @@ class GuiOptions(tk.ttk.Frame):
         self.update_idletasks()
 
         if bool(self.shadow_expiration) and self.strike_var.get() != "":
+            self.clear_plot_frame()
+            fig = Figure(figsize=(10, 6))
+            canvas = FigureCanvasTkAgg(fig, master=self.plot_frame)
             chart = ChartOptions()
             row = self.shadow_expiration[self.expiration_var.get()]
             strike = self.strike_var.get()
             success = chart.create_strike_chart(self.options_db,
+                                                fig,
                                                 self.symbol_var.get(),
                                                 row["option_expire_id"],
                                                 strike,
@@ -131,10 +149,18 @@ class GuiOptions(tk.ttk.Frame):
                                                 end_date=self.end_date,
                                                 option_type='extrinsic' if self.bid_extrinsic_value.get() == 1 else 'bid')
             if success:
-                plt.show()
+                self.show_figure(canvas)
                 self.status_var.set("Done")
             else:
                 self.status_var.set("No data available")
+
+    def show_figure(self, canvas):
+        canvas.draw()
+        canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
+
+        toolbar = NavigationToolbar2Tk(canvas, self.plot_frame)
+        toolbar.update()
+        canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
 
     def clear_symbol_menu(self):
         self.symbol_var.set('')
@@ -350,6 +376,9 @@ class GuiOptions(tk.ttk.Frame):
         # import time
         # time.sleep(1)
 
+        self.plot_frame = tk.ttk.Frame(self, relief=tk.RAISED, borderwidth=1)
+        self.plot_frame.pack(fill=tk.BOTH, side=tk.TOP, expand=True)
+
         self.status_var.set("Status")
         self.status_label = tk.ttk.Label(self, textvariable=self.status_var, background="lightsteelblue")
         self.status_label.pack(side=tk.BOTTOM, fill=tk.X, expand=False, ipadx=10, ipady=5)
@@ -359,7 +388,13 @@ def main():
     root = tk.Tk()
     root.geometry("1200x800+300+300")
     GuiOptions()
-    root.mainloop()
+    while True:
+        try:
+            root.mainloop()
+            break
+        except UnicodeDecodeError:
+            pass
+
 
 
 if __name__ == '__main__':
