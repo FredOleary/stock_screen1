@@ -262,6 +262,24 @@ class FinanceDB:
         df = pd.DataFrame(data=df_data, columns=df_column_values)
         return df
 
+    def delete_options( self, symbol: str, option_expire_id: int) -> None:
+        if option_expire_id != -1:
+            self._delete_option( option_expire_id )
+        else:
+            cursor = self.connection.cursor()
+            cursor.execute("SELECT option_expire_id FROM option_expire where symbol = ? ",
+                           [symbol])
+            rows = cursor.fetchall()
+            for row in rows:
+                self._delete_option(row[0])
+
+    def _delete_option(self, expire_id):
+        cursor = self.connection.cursor()
+        cursor.execute("DELETE FROM put_call_options where option_expire_id = ? ", (expire_id,))
+        cursor.execute("DELETE FROM option_expire where option_expire_id = ? ", (expire_id,))
+        cursor.execute("DELETE FROM stock_price where option_expire_id = ? ", (expire_id,))
+        self.connection.commit()
+
     def _create_verify_tables(self):
         # Get a list of all tables
         cursor = self.connection.cursor()

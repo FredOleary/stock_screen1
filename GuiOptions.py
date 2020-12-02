@@ -2,6 +2,7 @@
 
 import tkinter as tk
 from tkinter.ttk import Style
+from tkinter import messagebox
 import sys
 
 import matplotlib.pyplot as plt
@@ -22,6 +23,7 @@ class GuiOptions(tk.ttk.Frame):
         self.surface_chart_button = None
         self.line_chart_button = None
         self.strike_chart_button = None
+        self.delete_option_button = None
         self.status_label = None
         self.plot_frame = None
         self.symbol_var = tk.StringVar(self)
@@ -46,12 +48,12 @@ class GuiOptions(tk.ttk.Frame):
         self.toggle_date_filter()
         self.update_chart_button_enable()
         self.options_db = FinanceDB()
+        self.options_db.initialize()
         self.get_symbols()
         self.extrinsic_value_radio = None
         self.bid_value_radio = None
 
     def get_symbols(self):
-        self.options_db.initialize()
         df_symbols = self.options_db.get_all_symbols()
         symbol_set = set()
         for i_row, symbol_row in df_symbols.iterrows():
@@ -68,6 +70,27 @@ class GuiOptions(tk.ttk.Frame):
     def clear_plot_frame(self):
         for widget in self.plot_frame.winfo_children():
             widget.destroy()
+
+    def delete_option(self, event):
+        if not self.expiration_var.get():
+            message = "Do you want to delete all options for symbol {0}?".format(self.symbol_var.get())
+        else:
+            message = "Do you want to delete all options for symbol {0} with expiration date {1}?".\
+                format(self.symbol_var.get(), self.expiration_var.get())
+        answer = tk.messagebox.askquestion("Delete Option", message, icon='warning')
+        if answer == 'yes':
+            option_expire_id = -1
+            if self.expiration_var.get():
+                row = self.shadow_expiration[self.expiration_var.get()]
+                option_expire_id = row['option_expire_id']
+            symbol = self.symbol_var.get()
+            self.options_db.delete_options( symbol, option_expire_id)
+            self.clear_symbol_menu()
+            self.clear_expiration_menu()
+            self.clear_strike_menu()
+            self.get_symbols()
+        else:
+            print("not deleted....")
 
     # noinspection PyUnusedLocal
     def create_line_chart(self, event):
@@ -265,6 +288,10 @@ class GuiOptions(tk.ttk.Frame):
                 self.strike_chart_button.config(state='disabled')
             else:
                 self.strike_chart_button.config(state='normal')
+        if not self.symbol_var.get():
+            self.delete_option_button.config(state='disabled')
+        else:
+            self.delete_option_button.config(state='normal')
 
     def init_ui(self):
         self.master.title("Options")
@@ -290,6 +317,10 @@ class GuiOptions(tk.ttk.Frame):
         self.strike_chart_button = tk.ttk.Button(tool_bar, text="Strike Chart")
         self.strike_chart_button.pack(side=tk.LEFT, padx=5, pady=5)
         self.strike_chart_button.bind('<Button-1>', self.create_strike_chart)
+
+        self.delete_option_button = tk.ttk.Button(tool_bar, text="Delete option")
+        self.delete_option_button.pack(side=tk.LEFT, padx=5, pady=5)
+        self.delete_option_button.bind('<Button-1>', self.delete_option)
 
         self.symbol_var.set('')
         self.symbol_var.trace('w', self.symbol_selection_event)
