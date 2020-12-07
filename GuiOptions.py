@@ -11,14 +11,20 @@ import datetime
 # noinspection SpellCheckingInspection
 import tkcalendar as cal
 from DbFinance import FinanceDB
+from AddPosition import AddPosition as addPos
+from ListPositions import ListPositions as listPos
+
 from ChartOptions import ChartOptions
 from matplotlib.backends.backend_tkagg import (FigureCanvasTkAgg, NavigationToolbar2Tk)
 from matplotlib.figure import Figure
+from dateutil import parser
+
 
 class GuiOptions(tk.ttk.Frame):
 
-    def __init__(self):
+    def __init__(self, root):
         super().__init__()
+        self.tk_root = root
         self.close_button = None
         self.surface_chart_button = None
         self.line_chart_button = None
@@ -281,9 +287,14 @@ class GuiOptions(tk.ttk.Frame):
             self.surface_chart_button.config(state='disabled')
             self.line_chart_button.config(state='disabled')
             self.strike_chart_button.config(state='disabled')
+
+            self.positions_menu.entryconfig("Add", state="disabled")
+
         else:
             self.surface_chart_button.config(state='normal')
             self.line_chart_button.config(state='normal')
+            self.positions_menu.entryconfig("Add", state="normal")
+
             if not self.strike_var.get():
                 self.strike_chart_button.config(state='disabled')
             else:
@@ -295,6 +306,7 @@ class GuiOptions(tk.ttk.Frame):
 
     def init_ui(self):
         self.master.title("Options")
+        self.init_menus()
 
         # frame2 = Frame(self, relief=RAISED, borderwidth=1, style='My.TFrame')
         tool_bar = tk.ttk.Frame(self, relief=tk.RAISED, borderwidth=1)
@@ -380,10 +392,6 @@ class GuiOptions(tk.ttk.Frame):
         self.end_cal.pack(side=tk.BOTTOM, padx=5, pady=5)
         self.end_cal.bind('<<DateEntrySelected>>', self.end_date_changed)
 
-        # poo = Style()
-        # poo.theme_use("default")
-        # poo.configure('My.TFrame', background='lightgoldenrodyellow')
-
         bid_extrinsic_container = tk.ttk.Frame(tool_bar, style='My.TFrame')
         bid_extrinsic_container.pack(fill=tk.BOTH, side=tk.LEFT, expand=False)
 
@@ -414,11 +422,66 @@ class GuiOptions(tk.ttk.Frame):
         self.status_label = tk.ttk.Label(self, textvariable=self.status_var, background="lightsteelblue")
         self.status_label.pack(side=tk.BOTTOM, fill=tk.X, expand=False, ipadx=10, ipady=5)
 
+    def show_positions(self):
+        positions = self.options_db.get_positions()
+        dialog_position = []
+        if len(positions) > 0:
+            for row in positions:
+                # TODO row indexing below is fragile!
+                open_date = row[4].strftime('%Y-%m-%d')
+                expire_date = self.options_db.get_expire_date_from_id( row[8]).strftime('%Y-%m-%d')
+                position ={'id':row[0], 'symbol':row[1], 'put_call': row[2], 'buy_sell': row[3],
+                           'open_date': open_date, 'option': row[6], 'strike': row[7],
+                           'expiration': expire_date}
+                dialog_position.append(position)
+
+            dict = { 'positions': dialog_position, 'delete': False}
+
+            dialog = listPos(dict)
+            self.tk_root.wait_window(dialog.top)
+            if dict["delete"]:
+                self.options_db.delete_position( dict["selected"]["id"])
+        else:
+            tk.messagebox.showinfo("No Positions", "There are no positions")
+
+
+    def add_position(self):
+        if self.expiration_var.get():
+            row = self.shadow_expiration[self.expiration_var.get()]
+            option_expire_id = row['option_expire_id']
+
+            dict={'symbol': self.symbol_var.get(),
+                  'expiration_str': self.expiration_var.get(),
+                  'option_expire_id': option_expire_id,
+                  'added': False}
+
+            dialog = addPos(dict)
+            self.tk_root.wait_window(dialog.top)
+            if dict["added"]:
+                open_date = parser.parse(dict["open_date"])
+                self.options_db.add_position(dict["symbol"],
+                                             dict["put_call"],
+                                             dict["buy_sell"],
+                                             open_date,
+                                             dict["option_price"],
+                                             dict["strike_price"],
+                                             dict["option_expire_id"])
+
+
+    def init_menus(self):
+        self.menu_bar = tk.Menu(self.tk_root)
+        self.positions_menu = tk.Menu(self.menu_bar, tearoff=0)
+        self.positions_menu.add_command(label="Show", command=self.show_positions)
+        self.positions_menu.add_command(label="Add", command=self.add_position)
+        self.menu_bar.add_cascade(label="Positions", menu=self.positions_menu)
+
+
+        self.tk_root.config(menu=self.menu_bar)
 
 def main():
     root = tk.Tk()
     root.geometry("1200x800+300+300")
-    GuiOptions()
+    GuiOptions(root)
     while True:
         try:
             root.mainloop()

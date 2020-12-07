@@ -72,8 +72,27 @@ class FinanceDB:
                                 FOREIGN KEY (option_expire_id)
                                 REFERENCES option_expire(option_expire_id)
 
-                      ); """}
-                       ]
+                      ); """},
+                       {"name": "positions",
+                        "create_sql": """ CREATE TABLE IF NOT EXISTS positions (
+                         position_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                         symbol TEXT,
+                         put_call TEXT NOT NULL,
+                         buy_sell TEXT NOT NULL,
+                         open_date TIMESTAMP NOT NULL,
+                         close_date TIMESTAMP,
+                         option_price REAL NOT NULL,
+                         strike_price REAL NOT NULL,
+                         option_expire_id INTEGER,
+                         UNIQUE( symbol, open_date, option_expire_id),
+                         CONSTRAINT fk_option_expire
+                            FOREIGN KEY (option_expire_id)
+                            REFERENCES option_expire(option_expire_id)
+
+
+                     ); """}
+
+                    ]
 
     def initialize(self):
         """ Initialize database connection and tables """
@@ -279,6 +298,44 @@ class FinanceDB:
         cursor.execute("DELETE FROM option_expire where option_expire_id = ? ", (expire_id,))
         cursor.execute("DELETE FROM stock_price where option_expire_id = ? ", (expire_id,))
         self.connection.commit()
+
+    def get_positions(self):
+        cursor = self.connection.cursor()
+        cmd = "SELECT * FROM positions"
+        cursor.execute(cmd)
+        return cursor.fetchall()
+
+    def delete_position(self, position_id):
+        cursor = self.connection.cursor()
+        cursor.execute("DELETE FROM positions where position_id = ? ", (position_id,))
+        self.connection.commit()
+
+
+    def get_expire_date_from_id(self, option_expire_id: int) -> datetime.datetime:
+        cursor = self.connection.cursor()
+        cursor.execute( "SELECT expire_date FROM option_expire where option_expire_id = ?", (option_expire_id, ))
+        rows = cursor.fetchall()
+        return rows[0][0]
+
+    def add_position(self, symbol: str, put_call:str, buy_sell: str, open_date: datetime.datetime,
+                     option_price: float, strike_price: float, option_expire_id: int) -> None:
+        cursor = self.connection.cursor()
+        cursor.execute("INSERT INTO positions(symbol, put_call, buy_sell, open_date,"
+                       "option_price, strike_price, option_expire_id) VALUES (?,?,?,?,?,?,?)",
+                       [symbol, put_call, buy_sell, open_date, option_price,
+                        strike_price, option_expire_id])
+        self.connection.commit()
+
+    def search_positions(self, option_expire_id: int, strike_price: float) ->\
+            (datetime.datetime, datetime.datetime, float):
+        cursor = self.connection.cursor()
+        cursor.execute( "SELECT * FROM positions where option_expire_id = ? and strike_price = ?",
+                        (option_expire_id, strike_price))
+        rows = cursor.fetchall()
+        if len(rows) > 0:
+            return rows[0][4], rows[0][5], rows[0][6]
+        else:
+            return None, None, None
 
     def _create_verify_tables(self):
         # Get a list of all tables

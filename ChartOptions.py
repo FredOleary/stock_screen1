@@ -60,6 +60,15 @@ class ChartOptions:
                 pass
         return result
 
+    def get_option_ask(self, option_row) -> float:
+        ask_value = math.nan
+        ask_value = option_row["ask"]
+        if ask_value is not None:
+            if option_row['bid'] == 0 and option_row['ask' == 0]:
+                # Looks like some kind of hiccup...
+                ask_value = math.nan
+        return ask_value
+
     def prepare_options(self, options_db: FinanceDB, symbol: str, options_for_expiration_key: int, put_call: str,
                         start_date: datetime.datetime = None, end_date: datetime.datetime = None,
                         option_type: str = 'extrinsic') -> bool:
@@ -216,27 +225,50 @@ class ChartOptions:
         df_dates_and_stock_price = options_db.get_date_times_for_expiration_df(
             symbol, options_for_expiration_key, start_date, end_date)
         if df_dates_and_stock_price is not None:
+            # Check if there is a position for this option
+            open_date, close_date, position_strike_price = options_db.search_positions(
+                options_for_expiration_key, strike )
             x_dates = df_dates_and_stock_price["datetime"].to_numpy()
             stock_price_ids = df_dates_and_stock_price["stock_price_id"].to_numpy()
             self.stock_price = df_dates_and_stock_price["price"].to_numpy()
             strikes_for_expiration = options_db.get_strikes_for_expiration(options_for_expiration_key,
                                                                            strike,
                                                                            put_call=put_call)
-            y_strikes = np.empty(x_dates.size)
-            # y_strikes = np.full((x_dates.size, 0), math.nan, dtype=float)
-            y_strikes.fill(math.nan)
+            y_strikes_bid = np.empty(x_dates.size)
+            y_strikes_extrinsic = np.empty(x_dates.size)
+            if open_date is not None:
+                y_strikes_profit = np.empty(x_dates.size)
+                y_strikes_profit.fill(math.nan)
+
+            y_strikes_bid.fill(math.nan)
+            y_strikes_extrinsic.fill(math.nan)
             stock_price_id_map = create_index_map(stock_price_ids)
 
             for index, row in strikes_for_expiration.iterrows():
                 if row["stock_price_id"] in stock_price_id_map:
-                    value = self.get_option_value(row, put_call, option_type)
-                    y_strikes[stock_price_id_map[row["stock_price_id"]]] = value
-            #         self.z_price[stock_price_id_map[row["stock_price_id"]]][
-            #             self.y_strike_map[row["strike"]]] = value
+                    # Bid value
+                    value = self.get_option_value(row, put_call, 'bid')
+                    y_strikes_bid[stock_price_id_map[row["stock_price_id"]]] = value
+                    # extrinsic value
+                    value = self.get_option_value(row, put_call, 'extrinsic')
+                    y_strikes_extrinsic[stock_price_id_map[row["stock_price_id"]]] = value
+                    # calculate profit if we have a position
+                    # (Note... only implemented for selling calls)
+                    if open_date is not None:
+                        date = pd.to_datetime(x_dates[stock_price_id_map[row["stock_price_id"]]])
+                        if date > open_date:
+                            ask_value = self.get_option_ask(row)
+                            y_strikes_profit[stock_price_id_map[row["stock_price_id"]]] = \
+                                position_strike_price - ask_value
+
             indicies = np.arange(len(x_dates))
 
             ax = fig.add_subplot(111)
-            strike_line, = ax.plot(indicies, y_strikes, label="{0}".format(strike))
+            ax.plot(indicies, y_strikes_bid, label="{0} (bid)".format(strike))
+            ax.plot(indicies, y_strikes_extrinsic, label="{0} (extrinsic)".format(strike))
+            if open_date is not None:
+                ax.plot(indicies, y_strikes_profit, label="{0} (profit)".format(strike))
+
             legend = ax.legend(loc='upper left')
             legend.get_frame().set_alpha(0.4)
 
