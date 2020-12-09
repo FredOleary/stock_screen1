@@ -186,7 +186,7 @@ class FinanceWeb:
                 self.logger.error(err.code)
             return news
 
-    def get_options_for_stock_series_yahoo(self, stock_ticker) -> list:
+    def get_options_for_stock_series_yahoo(self, stock_ticker, strike_filter="ATM", put_call="BOTH") -> list:
         """ Return options chain prices from yahoo finance.
         This method returns monthly options chains for option strike prices 'around' the money
         """
@@ -205,7 +205,13 @@ class FinanceWeb:
                 (is_third_friday, date, date_time) = self.is_third_friday(expire_date)
                 if is_third_friday is True:
                     options_obj = ticker.option_chain(expire_date)
-                    filtered_options = self.filter_to_at_the_money(options_obj)
+                    self.filter_garbage_options(options_obj)
+                    if strike_filter == "ATM":
+                        filtered_options = self._filter_to_at_the_money(options_obj)
+                    elif strike_filter == "OTM":
+                        filtered_options = self._filter_to_out_of_the_money(options_obj, put_call)
+                    else:
+                        filtered_options = {}
                     return_options = {'ticker': stock_ticker,
                                       'current_value': current_value,
                                       'current_time': current_time,
@@ -217,6 +223,30 @@ class FinanceWeb:
                 self.logger.error(err.args[0])
 
         return options
+
+    def filter_garbage_options(self, options_obj) -> None:
+        """
+        The Yahoo api seems to yield stale strikes , esp for TSLA. E.g. with lastTradeDates > 1 month
+        Additionally these strikes have garbage values. E.g. a call strike of $810 with a current price of $600 has
+        a legit bid of $11. However a 'stale' strike of $815 has a garage bid of $1322.
+        This method 'purges' options with stale lastTradeDates
+        """
+        def _filter_garbage( options_df: pandas.DataFrame ):
+            now = datetime.now()
+            delete_rows = []
+            for index, row in options_df.iterrows():
+                last_trade_date = pandas.to_datetime(row["lastTradeDate"])
+                days_diff = (now.date() - last_trade_date.date()).days
+                if days_diff > 10:
+                    delete_rows.append(index)
+
+            if delete_rows:
+                options_df.drop(delete_rows, inplace=True)
+
+
+
+        _filter_garbage(options_obj.calls)
+        _filter_garbage(options_obj.puts)
 
     def is_third_friday(self, time_str: str) -> (bool, str, datetime):
         d = datetime.strptime(time_str, '%Y-%m-%d')  # Eg "2020-10-08"
@@ -230,13 +260,12 @@ class FinanceWeb:
                 return True, time_str, d
         return False, time_str, d
 
-    def filter_to_at_the_money(self, options_obj: any) -> any:
-        calls = self.filter_to_the_money_puts_and_calls(options_obj.calls, True)
+    def _filter_to_at_the_money(self, options_obj: any) -> {}:
+        calls = self._filter_to_the_money_puts_and_calls(options_obj.calls, True)
         puts = self.filter_to_the_money_puts_and_calls(options_obj.puts, False)
         return {'calls': calls, 'puts': puts}
 
-    def filter_to_the_money_puts_and_calls(self, df: pandas.DataFrame, is_call: bool) -> \
-            pandas.DataFrame:
+    def _filter_to_the_money_puts_and_calls(self, df: pandas.DataFrame, is_call: bool) -> pandas.DataFrame:
         start_index = 0
         end_index = len(df)
         current_index = 0
@@ -252,6 +281,33 @@ class FinanceWeb:
                     end_index = current_index + 10
                 return df.iloc[start_index:end_index]
 
+            else:
+                if row["inTheMoney"] == transition:
+                    found_transition = True
+                else:
+                    current_index += 1
+        return df
+
+    def _filter_to_out_of_the_money(self, options_obj: any, put_call:str) -> {}:
+        result = {}
+        if put_call == "BOTH" or put_call == "CALL":
+            result["calls"] = self._filter_out_the_money_puts_and_calls(options_obj.calls, True)
+        if put_call == "BOTH" or put_call == "PUT":
+            result["puts"] = self._filter_out_the_money_puts_and_calls(options_obj.puts, False)
+        return result
+
+    def _filter_out_the_money_puts_and_calls(self, df: pandas.DataFrame, is_call: bool) -> pandas.DataFrame:
+        current_index = 0
+        found_transition = False
+        transition = True
+        if is_call:
+            transition = False
+        for index, row in df.iterrows():
+            if found_transition:
+                if is_call:
+                    return df.iloc[current_index:len(df)]
+                else:
+                    return df.iloc[0:current_index]
             else:
                 if row["inTheMoney"] == transition:
                     found_transition = True

@@ -6,7 +6,8 @@ class OptionsWatch:
             {"symbol": "MAR", "name": "Marriot"},
             {"symbol": "TSLA", "name": "Tesla Motor"},
             {"symbol": "T", "name": "AT&T"},
-            {"symbol": "VZ", "name": "Verizon"}
+            {"symbol": "VZ", "name": "Verizon"},
+            {"symbol": "AMD", "name": "Advanced Micro Devices"}
         ]
 
     def get_companies(self):
