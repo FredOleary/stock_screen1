@@ -2,17 +2,46 @@
 
 import tkinter as tk
 from tkinter.ttk import Style
+from queue import Queue
+from threading import Thread
+
 from tkinter import messagebox
 import sys
 import math
 import logging
 import logging.handlers
+import datetime
 
 from DbFinance import FinanceDB
 from OptionsWatch import OptionsWatch
 from WebFinance import FinanceWeb
 import pandas as pd
+import time
 from pandastable import Table, TableModel
+
+class OptionsFetch(Thread):
+    def __init__(self, request_queue: Queue, response_queue: Queue) -> None:
+        Thread.__init__(self)
+        self.request_queue = request_queue
+        self.response_queue = response_queue
+        self.web = FinanceWeb()
+
+    def run(self):
+        self.running = True
+        while self.running:
+            company = self.request_queue.get()
+            print("Request received")
+            if type(company) == str and company == "QUIT":
+                self.running = False
+            else:
+                options = self.web.get_options_for_stock_series_yahoo(company["symbol"], strike_filter="OTM", put_call="CALL")
+                self.response_queue.put(options)
+
+# def options_retriever( request_queue: Queue, response_queue: Queue, web_obj: FinanceWeb) -> None:
+#     while True:
+#         company = request_queue.get()
+#         options = web_obj.get_options_for_stock_series_yahoo(company["symbol"], strike_filter="OTM", put_call="CALL")
+#         response_queue.put({"company":company, "options":options})
 
 class CallScreenerOptions(tk.ttk.Frame):
 
@@ -22,6 +51,10 @@ class CallScreenerOptions(tk.ttk.Frame):
         self.close_button = None
         self.status_label = None
         self.call_screener_frame = None
+        self.popup_expiration_menu = None
+        self.expiration_var = tk.StringVar(self)
+        self.request_queue = Queue()
+        self.response_queue = Queue()
 
         self.status_var = tk.StringVar(self)
 
@@ -33,12 +66,38 @@ class CallScreenerOptions(tk.ttk.Frame):
         self.options_db.initialize()
         self.companies = OptionsWatch()
         self.init_table()
+        self.clear_expiration_menu()
+        # expiration_set = set()
+        # temp = datetime.datetime.now()
+        # expiration_set.add(temp.strftime('%Y-%m-%d'))
+        # temp += datetime.timedelta(days=4)
+        # expiration_set.add(temp.strftime('%Y-%m-%d'))
 
+        expiration_list = self.get_next_two_expirations(2)
+        self.update_expiration(expiration_list)
+        self.expiration_var.set(expiration_list[0])
+        self.options_fetch = OptionsFetch(self.request_queue, self.response_queue)
+        self.options_fetch.start()
         self.update_options()
+
+    def get_next_two_expirations(self, count):
+        expiration_date = datetime.datetime.now()
+        result = []
+        while count > 0:
+            date_str = expiration_date.strftime('%Y-%m-%d')
+            (is_third_friday, date, date_time) = self.web.is_third_friday( date_str)
+            if is_third_friday:
+                result.append(date_time.strftime('%Y-%m-%d'))
+                count -= 1
+            expiration_date += datetime.timedelta(days=1)
+        return result
+
+
     # noinspection PyUnusedLocal
-    @staticmethod
-    def quit_app(event):
+    def quit_app(self, event):
         print("Exit command")
+        self.request_queue.put("QUIT")
+        self.options_fetch.join()
         sys.exit()
 
     def clear_call_screener_frame(self):
@@ -74,17 +133,18 @@ class CallScreenerOptions(tk.ttk.Frame):
 
         self.pack(fill=tk.BOTH, expand=True)
 
+        self.popup_expiration_menu = tk.OptionMenu(tool_bar, self.expiration_var, *{''})
+        self.popup_expiration_menu.config(width=16)
+        self.popup_expiration_menu.pack(side=tk.LEFT, padx=5, pady=5)
+        self.expiration_var.trace('w', self.expiration_var_selection_event)
+
         self.close_button = tk.ttk.Button(tool_bar, text="Close")
         self.close_button.pack(side=tk.RIGHT, padx=5, pady=5)
         self.close_button.bind('<Button-1>', self.quit_app)
 
-
-
         tool_bar_style = Style()
         tool_bar_style.theme_use("default")
         tool_bar_style.configure('My.TFrame', background='lightsteelblue')
-
-
 
         self.call_screener_frame = tk.ttk.Frame(self, relief=tk.RAISED, borderwidth=1)
         self.call_screener_frame.pack(fill=tk.BOTH, side=tk.TOP, expand=True)
@@ -96,50 +156,90 @@ class CallScreenerOptions(tk.ttk.Frame):
     def init_table(self):
         self.table_dict = {}
         for company in self.companies.get_companies():
-            self.table_dict[company["symbol"]] = [company["symbol"], math.nan, math.nan, math.nan, math.nan, math.nan, math.nan]
+            self.table_dict[company["symbol"]] = [company["symbol"], math.nan, math.nan, math.nan, math.nan, math.nan,
+                                                  math.nan]
 
         self.data_frame = pd.DataFrame.from_dict(self.table_dict, orient='index',
-                                         columns=['Ticker', 'Stock Price', 'Strike', '%(OTM)', 'Bid', 'Ask', 'ROI (Bid/Stock Price)'])
+                                                 columns=['Ticker', 'Stock Price', 'Strike', '%(OTM)',
+                                                          'Bid', 'Ask', 'ROI(%) (Bid/Stock Price)'])
         self.table = Table(self.call_screener_frame, dataframe=self.data_frame,
-                                showtoolbar=False, showstatusbar=True)
+                           showtoolbar=False, showstatusbar=True)
         self.table.show()
-        self.update_options()
+        self.check_response()
+
+    def clear_expiration_menu(self):
+        self.expiration_var.set('')
+        self.popup_expiration_menu['menu'].delete(0, 'end')
+
+    def update_expiration(self, choices):
+        for choice in choices:
+            self.popup_expiration_menu['menu'].add_command(label=choice,
+                                                           command=lambda value=choice: self.expiration_var.set(value))
+
+    def expiration_var_selection_event(self, *args):
+        if self.expiration_var.get():
+            for index, row in self.data_frame.iterrows():
+                self.data_frame.loc[row['Ticker'], 'Stock Price'] = math.nan
+                self.data_frame.loc[row['Ticker'], 'Strike'] = math.nan
+                self.data_frame.loc[row['Ticker'], '%(OTM)'] = math.nan
+                self.data_frame.loc[row['Ticker'], 'Bid'] = math.nan
+                self.data_frame.loc[row['Ticker'], 'Ask'] = math.nan
+                self.data_frame.loc[row['Ticker'], 'ROI(%) (Bid/Stock Price)'] = math.nan
+            self.table.redraw()
+
 
     def update_options(self):
         print("updating...")
-        options = self.web.get_options_for_stock_series_yahoo("TSLA", strike_filter="OTM", put_call="CALL")
         for company in self.companies.get_companies():
-            options = self.web.get_options_for_stock_series_yahoo(company["symbol"], strike_filter="OTM", put_call="CALL")
-            self.update_company_in_table(company["symbol"], options)
-        self.table.redraw()
-        self.tk_root.after(10000, self.update_options)
+            self.request_queue.put( company)
+            # options = self.web.get_options_for_stock_series_yahoo(company["symbol"], strike_filter="OTM",
+            #                                                       put_call="CALL")
+            # self.update_company_in_table(company["symbol"], options)
+        self.tk_root.after(15000, self.update_options)
 
-    def update_company_in_table(self, company:str, options: list) -> None:
-        chain = options[0] # TODO allow user to choose expiration date
-        best_index, otm_percent_actual = self.find_best_index(chain, 15 )
-        self.data_frame.loc[company, 'Stock Price'] = chain['current_value']
-        self.data_frame.loc[company, 'Strike'] = chain['options_chain']['calls'].iloc[best_index]['strike']
+    def check_response(self):
+        if not self.response_queue.empty():
+            response = self.response_queue.get()
+            print("response received")
+            self.update_company_in_table(response)
+
+        self.tk_root.after(500, self.check_response)
+
+    def update_company_in_table(self, response) -> None:
+        display_chain = response[0]
+        for chain in response:
+            chain_expire = chain['expire_date'].strftime('%Y-%m-%d')
+            if self.expiration_var.get() == chain_expire:
+                display_chain = chain
+                break
+
+        company = display_chain["ticker"]
+        best_index, otm_percent_actual = self.find_best_index(display_chain, 15)
+        self.data_frame.loc[company, 'Stock Price'] = display_chain['current_value']
+        self.data_frame.loc[company, 'Strike'] = display_chain['options_chain']['calls'].iloc[best_index]['strike']
         self.data_frame.loc[company, '%(OTM)'] = otm_percent_actual
-        self.data_frame.loc[company, 'Bid'] = chain['options_chain']['calls'].iloc[best_index]['bid']
-        self.data_frame.loc[company, 'Ask'] = chain['options_chain']['calls'].iloc[best_index]['ask']
-        roi_percnt = round( (chain['options_chain']['calls'].iloc[best_index]['bid']/chain['current_value'] *100),2)
-        self.data_frame.loc[company, 'ROI (Bid/Stock Price)'] = roi_percnt
+        self.data_frame.loc[company, 'Bid'] = display_chain['options_chain']['calls'].iloc[best_index]['bid']
+        self.data_frame.loc[company, 'Ask'] = display_chain['options_chain']['calls'].iloc[best_index]['ask']
+        roi_percent = round((display_chain['options_chain']['calls'].iloc[best_index]['bid'] / display_chain['current_value'] * 100), 2)
+        self.data_frame.loc[company, 'ROI(%) (Bid/Stock Price)'] = roi_percent
+        self.table.redraw()
 
     def find_best_index(self, chain: {}, otm_percent) -> int:
         best_index = 0
         otm_percent_actual = math.nan
         index = 0
         current_delta = 100
-        while index <  len(chain['options_chain']['calls']):
+        while index < len(chain['options_chain']['calls']):
             diff = chain['options_chain']['calls'].iloc[index]['strike'] - chain['current_value']
-            percent_diff = (diff/chain['current_value'] * 100)
+            percent_diff = (diff / chain['current_value'] * 100)
             delta = otm_percent - percent_diff
             if abs(delta) < current_delta:
                 current_delta = delta
                 best_index = index
-                otm_percent_actual = round(percent_diff,2)
+                otm_percent_actual = round(percent_diff, 2)
             index += 1
         return best_index, otm_percent_actual
+
 
 def main():
     root = tk.Tk()
@@ -151,7 +251,6 @@ def main():
             break
         except UnicodeDecodeError:
             pass
-
 
 
 if __name__ == '__main__':
