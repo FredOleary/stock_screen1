@@ -158,11 +158,13 @@ class CallScreenerOptions(tk.ttk.Frame):
         table_dict = {}
         for company in self.companies.get_companies():
             table_dict[company["symbol"]] = [company["symbol"], math.nan, math.nan,
-                                             math.nan, math.nan, math.nan, math.nan, math.nan]
+                                             math.nan, math.nan, math.nan, math.nan,
+                                             math.nan, math.nan]
 
         self.data_frame = pd.DataFrame.from_dict(table_dict, orient='index',
                                                  columns=['Ticker', 'Stock Price', 'Strike', '%(OTM)',
-                                                          'Bid', 'Ask', 'ROI(%) (Bid/Stock Price)', 'Annual ROI(%)'])
+                                                          'Bid', 'Ask', 'ROI(%) (Bid/Stock Price)',
+                                                          'Annual ROI(%)', 'Implied Volatility'])
         self.table = Table(self.call_screener_frame, dataframe=self.data_frame,
                            showtoolbar=False, showstatusbar=True)
         self.table.show()
@@ -188,7 +190,7 @@ class CallScreenerOptions(tk.ttk.Frame):
                 self.data_frame.loc[row['Ticker'], 'Ask'] = math.nan
                 self.data_frame.loc[row['Ticker'], 'ROI(%) (Bid/Stock Price)'] = math.nan
                 self.data_frame.loc[row['Ticker'], 'Annual ROI(%)'] = math.nan
-
+                self.data_frame.loc[row['Ticker'], 'Implied Volatility'] = math.nan
 
             self.table.redraw()
 
@@ -226,6 +228,8 @@ class CallScreenerOptions(tk.ttk.Frame):
         self.data_frame.loc[company, 'Ask'] = display_chain['options_chain']['calls'].iloc[best_index]['ask']
         roi_percent = round((display_chain['options_chain']['calls'].iloc[best_index]['bid'] / display_chain['current_value'] * 100), 2)
         self.data_frame.loc[company, 'ROI(%) (Bid/Stock Price)'] = roi_percent
+        self.data_frame.loc[company, 'Implied Volatility'] = \
+            round(display_chain['options_chain']['calls'].iloc[best_index]['impliedVolatility'] *100, 2)
         now = datetime.datetime.now()
         expiration = datetime.datetime.strptime(self.expiration_var.get(), '%Y-%m-%d')
         delta = (expiration - now).days
