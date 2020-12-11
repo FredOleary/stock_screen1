@@ -8,18 +8,19 @@ Created on Thu Aug  3 11:15:04 2017
 
 # from yahoo_finance import Share
 
-import urllib.request
 import json
+import pickle
+import urllib.request
 from datetime import datetime
 from datetime import timedelta
 from datetime import timezone
+
 import demjson
+import pandas
+import pytz
+import yfinance as yf
 from dateutil import parser
 from tzlocal import get_localzone
-import pytz
-import pickle
-import yfinance as yf
-import pandas
 
 
 # noinspection SpellCheckingInspection,PyMethodMayBeStatic,PyMethodMayBeStatic,PyMethodMayBeStatic,
@@ -186,7 +187,10 @@ class FinanceWeb:
                 self.logger.error(err.code)
             return news
 
-    def get_options_for_stock_series_yahoo(self, stock_ticker, strike_filter="ATM", put_call="BOTH") -> list:
+    def get_options_for_stock_series_yahoo(self, stock_ticker,
+                                           strike_filter="ATM",
+                                           put_call="BOTH",
+                                           look_a_heads=2) -> list:
         """ Return options chain prices from yahoo finance.
         This method returns monthly options chains for option strike prices 'around' the money
         """
@@ -196,14 +200,14 @@ class FinanceWeb:
         try:
             ticker = yf.Ticker(stock_ticker)
             history = ticker.history(period="1d", interval="1m")
-            current_value = history.Close[len(history.Close)-1]
-            current_pd_time = history.axes[0][len(history.axes[0])-1]
+            current_value = history.Close[len(history.Close) - 1]
+            current_pd_time = history.axes[0][len(history.axes[0]) - 1]
             current_time = current_pd_time.to_pydatetime()
             current_time = current_time.astimezone(timezone.utc)
-            current_time = current_time.replace(tzinfo=None)    # Want UTC with NO timezone info
+            current_time = current_time.replace(tzinfo=None)  # Want UTC with NO timezone info
             for expire_date in ticker.options:
                 (is_third_friday, date, date_time) = self.is_third_friday(expire_date)
-                if is_third_friday is True:
+                if is_third_friday and look_a_heads > 0:
                     options_obj = ticker.option_chain(expire_date)
                     self.filter_garbage_options(options_obj)
                     if strike_filter == "ATM":
@@ -218,6 +222,7 @@ class FinanceWeb:
                                       'expire_date': date_time,
                                       'options_chain': filtered_options}
                     options.append(return_options)
+                    look_a_heads -= 1
         except Exception as err:
             if self.logger is not None:
                 self.logger.error(err.args[0])
@@ -226,12 +231,13 @@ class FinanceWeb:
 
     def filter_garbage_options(self, options_obj) -> None:
         """
-        The Yahoo api seems to yield stale strikes , esp for TSLA. E.g. with lastTradeDates > 1 month
+        The Yahoo api seems to yield stale strikes , esp for Tesla. E.g. with lastTradeDates > 1 month
         Additionally these strikes have garbage values. E.g. a call strike of $810 with a current price of $600 has
         a legit bid of $11. However a 'stale' strike of $815 has a garage bid of $1322.
         This method 'purges' options with stale lastTradeDates
         """
-        def _filter_garbage( options_df: pandas.DataFrame ):
+
+        def _filter_garbage(options_df: pandas.DataFrame):
             now = datetime.now()
             delete_rows = []
             for index, row in options_df.iterrows():
@@ -243,8 +249,6 @@ class FinanceWeb:
             if delete_rows:
                 options_df.drop(delete_rows, inplace=True)
 
-
-
         _filter_garbage(options_obj.calls)
         _filter_garbage(options_obj.puts)
 
@@ -254,15 +258,15 @@ class FinanceWeb:
         d = d + timedelta(days=1)
 
         if d.weekday() == 4 and 15 <= d.day <= 21:
-            # Also check that expiration date isn't more than 60 days out
-            days_diff = d - datetime.now()
-            if days_diff.days < 60:
-                return True, time_str, d
+            # # Also check that expiration date isn't more than 60 days out
+            # days_diff = d - datetime.now()
+            # if days_diff.days < 60:
+            return True, time_str, d
         return False, time_str, d
 
     def _filter_to_at_the_money(self, options_obj: any) -> {}:
         calls = self._filter_to_the_money_puts_and_calls(options_obj.calls, True)
-        puts = self.filter_to_the_money_puts_and_calls(options_obj.puts, False)
+        puts = self._filter_to_the_money_puts_and_calls(options_obj.puts, False)
         return {'calls': calls, 'puts': puts}
 
     def _filter_to_the_money_puts_and_calls(self, df: pandas.DataFrame, is_call: bool) -> pandas.DataFrame:
@@ -288,7 +292,7 @@ class FinanceWeb:
                     current_index += 1
         return df
 
-    def _filter_to_out_of_the_money(self, options_obj: any, put_call:str) -> {}:
+    def _filter_to_out_of_the_money(self, options_obj: any, put_call: str) -> {}:
         result = {}
         if put_call == "BOTH" or put_call == "CALL":
             result["calls"] = self._filter_out_the_money_puts_and_calls(options_obj.calls, True)

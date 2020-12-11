@@ -5,7 +5,6 @@ from tkinter.ttk import Style
 from queue import Queue
 from threading import Thread
 
-from tkinter import messagebox
 import sys
 import math
 import logging
@@ -13,11 +12,11 @@ import logging.handlers
 import datetime
 
 from DbFinance import FinanceDB
-from OptionsWatch import OptionsWatch
+from OptionsScreenerWatch import OptionsScreenerWatch
 from WebFinance import FinanceWeb
 import pandas as pd
-import time
-from pandastable import Table, TableModel
+from pandastable import Table
+from OptionsConfiguration import OptionsConfiguration
 
 class OptionsFetch(Thread):
     def __init__(self, request_queue: Queue, response_queue: Queue) -> None:
@@ -25,23 +24,24 @@ class OptionsFetch(Thread):
         self.request_queue = request_queue
         self.response_queue = response_queue
         self.web = FinanceWeb()
+        self.running = True
+
 
     def run(self):
-        self.running = True
+        config = OptionsConfiguration()
+        look_a_heads = (config.get_configuration())["screener_look_ahead_expirations"]
+        print("Starting OptionsFetch thread, look_a_heads = {0}".format(look_a_heads))
         while self.running:
             company = self.request_queue.get()
             print("Request received")
             if type(company) == str and company == "QUIT":
                 self.running = False
             else:
-                options = self.web.get_options_for_stock_series_yahoo(company["symbol"], strike_filter="OTM", put_call="CALL")
+                options = self.web.get_options_for_stock_series_yahoo(company["symbol"],
+                                                                      strike_filter="OTM",
+                                                                      put_call="CALL",
+                                                                      look_a_heads=look_a_heads)
                 self.response_queue.put(options)
-
-# def options_retriever( request_queue: Queue, response_queue: Queue, web_obj: FinanceWeb) -> None:
-#     while True:
-#         company = request_queue.get()
-#         options = web_obj.get_options_for_stock_series_yahoo(company["symbol"], strike_filter="OTM", put_call="CALL")
-#         response_queue.put({"company":company, "options":options})
 
 class CallScreenerOptions(tk.ttk.Frame):
 
@@ -64,23 +64,21 @@ class CallScreenerOptions(tk.ttk.Frame):
 
         self.options_db = FinanceDB()
         self.options_db.initialize()
-        self.companies = OptionsWatch()
+        self.companies = OptionsScreenerWatch()
         self.init_table()
         self.clear_expiration_menu()
-        # expiration_set = set()
-        # temp = datetime.datetime.now()
-        # expiration_set.add(temp.strftime('%Y-%m-%d'))
-        # temp += datetime.timedelta(days=4)
-        # expiration_set.add(temp.strftime('%Y-%m-%d'))
-
-        expiration_list = self.get_next_two_expirations(2)
+        config = OptionsConfiguration()
+        look_a_heads = (config.get_configuration())["screener_look_ahead_expirations"]
+        expiration_list = self.get_expirations(look_a_heads)
         self.update_expiration(expiration_list)
         self.expiration_var.set(expiration_list[0])
         self.options_fetch = OptionsFetch(self.request_queue, self.response_queue)
         self.options_fetch.start()
         self.update_options()
 
-    def get_next_two_expirations(self, count):
+        self.tk_root.protocol("WM_DELETE_WINDOW", self.quit_app)
+
+    def get_expirations(self, count):
         expiration_date = datetime.datetime.now()
         result = []
         while count > 0:
@@ -94,8 +92,11 @@ class CallScreenerOptions(tk.ttk.Frame):
 
 
     # noinspection PyUnusedLocal
-    def quit_app(self, event):
+    def quit_app(self, event=None):
         print("Exit command")
+        with self.request_queue.mutex:
+            self.request_queue.queue.clear()
+
         self.request_queue.put("QUIT")
         self.options_fetch.join()
         sys.exit()
@@ -154,14 +155,14 @@ class CallScreenerOptions(tk.ttk.Frame):
         self.status_label.pack(side=tk.BOTTOM, fill=tk.X, expand=False, ipadx=10, ipady=5)
 
     def init_table(self):
-        self.table_dict = {}
+        table_dict = {}
         for company in self.companies.get_companies():
-            self.table_dict[company["symbol"]] = [company["symbol"], math.nan, math.nan, math.nan, math.nan, math.nan,
-                                                  math.nan]
+            table_dict[company["symbol"]] = [company["symbol"], math.nan, math.nan,
+                                             math.nan, math.nan, math.nan, math.nan, math.nan]
 
-        self.data_frame = pd.DataFrame.from_dict(self.table_dict, orient='index',
+        self.data_frame = pd.DataFrame.from_dict(table_dict, orient='index',
                                                  columns=['Ticker', 'Stock Price', 'Strike', '%(OTM)',
-                                                          'Bid', 'Ask', 'ROI(%) (Bid/Stock Price)'])
+                                                          'Bid', 'Ask', 'ROI(%) (Bid/Stock Price)', 'Annual ROI(%)'])
         self.table = Table(self.call_screener_frame, dataframe=self.data_frame,
                            showtoolbar=False, showstatusbar=True)
         self.table.show()
@@ -176,6 +177,7 @@ class CallScreenerOptions(tk.ttk.Frame):
             self.popup_expiration_menu['menu'].add_command(label=choice,
                                                            command=lambda value=choice: self.expiration_var.set(value))
 
+    # noinspection PyUnusedLocal
     def expiration_var_selection_event(self, *args):
         if self.expiration_var.get():
             for index, row in self.data_frame.iterrows():
@@ -185,16 +187,18 @@ class CallScreenerOptions(tk.ttk.Frame):
                 self.data_frame.loc[row['Ticker'], 'Bid'] = math.nan
                 self.data_frame.loc[row['Ticker'], 'Ask'] = math.nan
                 self.data_frame.loc[row['Ticker'], 'ROI(%) (Bid/Stock Price)'] = math.nan
+                self.data_frame.loc[row['Ticker'], 'Annual ROI(%)'] = math.nan
+
+
             self.table.redraw()
 
 
     def update_options(self):
         print("updating...")
+        self.status_var.set("Updating...")
         for company in self.companies.get_companies():
             self.request_queue.put( company)
-            # options = self.web.get_options_for_stock_series_yahoo(company["symbol"], strike_filter="OTM",
-            #                                                       put_call="CALL")
-            # self.update_company_in_table(company["symbol"], options)
+        self.status_var.set("")
         self.tk_root.after(15000, self.update_options)
 
     def check_response(self):
@@ -222,9 +226,16 @@ class CallScreenerOptions(tk.ttk.Frame):
         self.data_frame.loc[company, 'Ask'] = display_chain['options_chain']['calls'].iloc[best_index]['ask']
         roi_percent = round((display_chain['options_chain']['calls'].iloc[best_index]['bid'] / display_chain['current_value'] * 100), 2)
         self.data_frame.loc[company, 'ROI(%) (Bid/Stock Price)'] = roi_percent
+        now = datetime.datetime.now()
+        expiration = datetime.datetime.strptime(self.expiration_var.get(), '%Y-%m-%d')
+        delta = (expiration - now).days
+        anual_roi_percent = 365/delta * roi_percent
+        self.data_frame.loc[company, 'Annual ROI(%)'] = round(anual_roi_percent,2)
+
+
         self.table.redraw()
 
-    def find_best_index(self, chain: {}, otm_percent) -> int:
+    def find_best_index(self, chain: {}, otm_percent) -> (int, float):
         best_index = 0
         otm_percent_actual = math.nan
         index = 0

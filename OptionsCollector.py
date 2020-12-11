@@ -1,4 +1,3 @@
-import numpy as np
 import logging
 import logging.handlers
 import sys
@@ -7,31 +6,7 @@ import time
 from WebFinance import FinanceWeb
 from DbFinance import FinanceDB
 from OptionsWatch import OptionsWatch
-
-UPDATE_RATE = 900  # 15 minutes/update
-
-
-def get_variance_and_mean(quote_list):
-    volatility = np.sqrt(np.var(quote_list))
-    mean = np.mean(quote_list)
-    return mean, volatility / mean * 100
-
-
-def get_scatter_array(min_max: [], date_array: []) -> object:
-    dates = []
-    amplitudes = []
-    for value in min_max:
-        dates.append(date_array[value[0]])
-        amplitudes.append(value[1])
-    return dates, amplitudes
-
-
-def filter_dates(first_date: object, data: []) -> []:
-    return_dates = []
-    for value in data:
-        if value['date'] > first_date:
-            return_dates.append(value)
-    return return_dates
+from OptionsConfiguration import OptionsConfiguration
 
 
 # noinspection SpellCheckingInspection
@@ -63,18 +38,22 @@ def process_options():
     companies = OptionsWatch()
     options_db = FinanceDB(companies.options_list, logger)
     options_db.initialize()
-
+    configuration = OptionsConfiguration()
+    # foo = configuration.get_configuration()
+    # foo['collector_update_rate_in_seconds']
+    update_rate = (configuration.get_configuration())["collector_update_rate_in_seconds"]
+    look_a_heads = (configuration.get_configuration())["collector_look_ahead_expirations"]
     repeat_get_quotes = True
     while repeat_get_quotes:
         for company in companies.get_companies():
-            options = web.get_options_for_stock_series_yahoo(company["symbol"])
+            options = web.get_options_for_stock_series_yahoo(company["symbol"], look_a_heads=look_a_heads)
             if len(options) > 0:
                 options_db.add_option_quote(options)
 
         if len(sys.argv) > 1:
             if sys.argv[1] == "repeat":
-                logger.info("Sleeping for {delay} minutes".format(delay=UPDATE_RATE / 60))
-                time.sleep(UPDATE_RATE)
+                logger.info("Sleeping for {delay} minutes".format(delay=update_rate / 60))
+                time.sleep(update_rate)
             else:
                 repeat_get_quotes = False
         else:

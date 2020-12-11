@@ -209,11 +209,11 @@ class GuiOptions(tk.ttk.Frame):
         else:
             self.clear_expiration_menu()
             df_options_expirations = self.options_db.get_all_options_expirations(self.symbol_var.get())
-            expiration_set = set()
+            expiration_set = []
             self.shadow_expiration = dict()
             for index, row in df_options_expirations.iterrows():
                 expiration_key = row["expire_date"].strftime('%Y-%m-%d')
-                expiration_set.add(expiration_key)
+                expiration_set.append(expiration_key)
                 self.shadow_expiration[expiration_key] = row
             self.update_expiration(expiration_set)
 
