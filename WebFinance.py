@@ -205,7 +205,8 @@ class FinanceWeb:
             current_time = current_pd_time.to_pydatetime()
             current_time = current_time.astimezone(timezone.utc)
             current_time = current_time.replace(tzinfo=None)  # Want UTC with NO timezone info
-            for expire_date in ticker.options:
+            expire_dates = ticker.options
+            for expire_date in expire_dates:
                 (is_third_friday, date, date_time) = self.is_third_friday(expire_date)
                 if is_third_friday and look_a_heads > 0:
                     options_obj = ticker.option_chain(expire_date)
@@ -254,8 +255,10 @@ class FinanceWeb:
 
     def is_third_friday(self, time_str: str) -> (bool, str, datetime):
         d = datetime.strptime(time_str, '%Y-%m-%d')  # Eg "2020-10-08"
-        # Note - day is actually d-1 (no idea why)
-        d = d + timedelta(days=1)
+        # Note - empirically we see that sometimes a thursday is returned, (rather than a Friday)
+        # No idea why however options expirations are Friday...
+        if d.weekday() == 3:
+            d = d + timedelta(days=1)
 
         if d.weekday() == 4 and 15 <= d.day <= 21:
             # # Also check that expiration date isn't more than 60 days out
