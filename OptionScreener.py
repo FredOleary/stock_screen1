@@ -87,7 +87,9 @@ class CallScreenerOptions(tk.ttk.Frame):
             if is_third_friday:
                 result.append(date_time.strftime('%Y-%m-%d'))
                 count -= 1
-            expiration_date += datetime.timedelta(days=1)
+                expiration_date += datetime.timedelta(days=2)
+            else:
+                expiration_date += datetime.timedelta(days=1)
         return result
 
 
