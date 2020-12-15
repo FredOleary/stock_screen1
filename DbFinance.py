@@ -235,9 +235,9 @@ class FinanceDB:
 
         rows = cursor.fetchall()
         np_rows = np.array(rows)
-        df_data = np_rows[:, [1, 4, 5, 6, 7, 14]]
+        df_data = np_rows[:, [1, 4, 5, 6, 7, 11, 14]]
         df = pd.DataFrame(data=df_data, columns=["stock_price_id", "strike", "lastPrice",
-                                                 "bid", "ask", "current_value"])
+                                                 "bid", "ask", "impliedVolatility", "current_value"])
         return df
 
     def get_date_times_for_expiration_df(self, symbol: str, option_expire_id: int,

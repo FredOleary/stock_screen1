@@ -182,6 +182,8 @@ class CallScreenerOptions(tk.ttk.Frame):
     # noinspection PyUnusedLocal
     def expiration_var_selection_event(self, *args):
         if self.expiration_var.get():
+            with self.request_queue.mutex:
+                self.request_queue.queue.clear()
             for index, row in self.data_frame.iterrows():
                 self.data_frame.loc[row['Ticker'], 'Stock Price'] = math.nan
                 self.data_frame.loc[row['Ticker'], 'Strike'] = math.nan

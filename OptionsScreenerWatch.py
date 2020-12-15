@@ -8,7 +8,9 @@ class OptionsScreenerWatch:
             {"symbol": "T", "name": "AT&T"},
             {"symbol": "VZ", "name": "Verizon"},
             {"symbol": "AMD", "name": "Advanced Micro Devices"},
-            {"symbol": "LITE", "name": "Lumentum technologies"}
+            {"symbol": "LITE", "name": "Lumentum technologies"},
+            {"symbol": "INTC", "name": "Intel Corporation"},
+            {"symbol": "QCOM", "name": "Qualcomm Inc"}
         ]
 
     def get_companies(self):

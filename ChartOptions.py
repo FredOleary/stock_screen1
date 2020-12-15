@@ -27,6 +27,9 @@ from DbFinance import FinanceDB
 import pytz
 from pytz import timezone
 import matplotlib.lines as mlines
+
+import Utilities as util
+
 from matplotlib.backends.backend_tkagg import (FigureCanvasTkAgg, NavigationToolbar2Tk)
 
 class ChartOptions:
@@ -59,6 +62,16 @@ class ChartOptions:
             else:
                 pass
         return result
+
+    def get_option_implied_volatility(self, option_row ) -> float:
+        result = math.nan
+        implied_volatility = option_row["impliedVolatility"]
+        if implied_volatility is not None:
+            if option_row['bid'] != 0 or option_row['ask'] != 0:
+                # Seems to get garbage when both put/ask are 0
+                result = implied_volatility
+        return result
+
 
     def get_option_ask(self, option_row) -> float:
         ask_value = math.nan
@@ -207,10 +220,10 @@ class ChartOptions:
         self.on_off_button = widgets.Button(ax_toggle, "Hide All Strikes")
         self.on_off_button.on_clicked(toggle_strikes)
 
-    def create_strike_chart(self, options_db: FinanceDB, fig: Figure, symbol: str, options_for_expiration_key: int,
-                            strike: float, expiration_date: datetime.datetime, put_call: str,
-                            start_date: datetime.datetime = None, end_date: datetime.datetime = None,
-                            option_type: str = 'extrinsic') -> bool:
+    def create_strike_profit_chart(self, options_db: FinanceDB, fig: Figure, symbol: str, options_for_expiration_key: int,
+                                   strike: float, expiration_date: datetime.datetime, put_call: str,
+                                   start_date: datetime.datetime = None, end_date: datetime.datetime = None,
+                                   option_type: str = 'extrinsic') -> bool:
 
         def create_index_map(series):
             index_map = {}
@@ -281,6 +294,70 @@ class ChartOptions:
             return True
         else:
             return False
+
+    def create_strike_metrics_chart(self, options_db: FinanceDB, fig: Figure, symbol: str, options_for_expiration_key: int,
+                                   strike: float, expiration_date: datetime.datetime, put_call: str,
+                                   start_date: datetime.datetime = None, end_date: datetime.datetime = None) -> bool:
+
+        def create_index_map(series):
+            index_map = {}
+            idx = 0
+            for element in series:
+                if element not in index_map.keys():
+                    index_map[element] = idx
+                    idx += 1
+            return index_map
+
+        # def normalize_series(series):
+        #     no_nans = np.asarray(series[~np.isnan(series)])
+        #     norm = np.linalg.norm(no_nans)
+        #     return no_nans / norm
+
+        df_dates_and_stock_price = options_db.get_date_times_for_expiration_df(
+            symbol, options_for_expiration_key, start_date, end_date)
+        if df_dates_and_stock_price is not None:
+            x_dates = df_dates_and_stock_price["datetime"].to_numpy()
+            stock_price_ids = df_dates_and_stock_price["stock_price_id"].to_numpy()
+            self.stock_price = df_dates_and_stock_price["price"].to_numpy()
+            strikes_for_expiration = options_db.get_strikes_for_expiration(options_for_expiration_key,
+                                                                           strike,
+                                                                           put_call=put_call)
+            y_strikes_bid = np.empty(x_dates.size)
+            y_strikes_extrinsic = np.empty(x_dates.size)
+            y_strikes_IV = np.empty(x_dates.size)
+
+            y_strikes_bid.fill(math.nan)
+            y_strikes_extrinsic.fill(math.nan)
+            y_strikes_IV.fill(math.nan)
+            stock_price_id_map = create_index_map(stock_price_ids)
+
+            for index, row in strikes_for_expiration.iterrows():
+                if row["stock_price_id"] in stock_price_id_map:
+                    # Bid value
+                    value = self.get_option_value(row, put_call, 'bid')
+                    y_strikes_bid[stock_price_id_map[row["stock_price_id"]]] = value
+                    # extrinsic value
+                    value = self.get_option_value(row, put_call, 'extrinsic')
+                    y_strikes_extrinsic[stock_price_id_map[row["stock_price_id"]]] = value
+                    y_strikes_IV[stock_price_id_map[row["stock_price_id"]]] = self.get_option_implied_volatility(row)
+
+            indicies = np.arange(len(x_dates))
+
+            ax = fig.add_subplot(111)
+            ax.plot(indicies, util.normalize_series(y_strikes_bid), label="{0} (bid)".format(strike))
+            ax.plot(indicies, util.normalize_series(y_strikes_extrinsic), label="{0} (extrinsic)".format(strike))
+            ax.plot(indicies, util.normalize_series(self.stock_price), label="{0} (stock price)".format(strike))
+            ax.plot(indicies, util.normalize_series(y_strikes_IV), label="{0} (Implied Volatility)".format(strike))
+
+            legend = ax.legend(loc='upper left')
+            legend.get_frame().set_alpha(0.4)
+
+            self.add_x_axis_and_title_2(fig, ax, x_dates, expiration_date, put_call, symbol, False)
+
+            return True
+        else:
+            return False
+
 
     def add_x_axis_and_title(self, ax, x_dates, expiration_date, put_call, symbol, has_zlabel):
         def format_date(x_in, pos=None):
