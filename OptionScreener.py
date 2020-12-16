@@ -87,9 +87,7 @@ class CallScreenerOptions(tk.ttk.Frame):
             if is_third_friday:
                 result.append(date_time.strftime('%Y-%m-%d'))
                 count -= 1
-                expiration_date += datetime.timedelta(days=2)
-            else:
-                expiration_date += datetime.timedelta(days=1)
+            expiration_date += datetime.timedelta(days=1)
         return result
 
 
@@ -216,30 +214,32 @@ class CallScreenerOptions(tk.ttk.Frame):
         self.tk_root.after(500, self.check_response)
 
     def update_company_in_table(self, response) -> None:
-        display_chain = response[0]
-        for chain in response:
-            chain_expire = chain['expire_date'].strftime('%Y-%m-%d')
-            if self.expiration_var.get() == chain_expire:
-                display_chain = chain
-                break
+        try:
+            display_chain = response[0]
+            for chain in response:
+                chain_expire = chain['expire_date'].strftime('%Y-%m-%d')
+                if self.expiration_var.get() == chain_expire:
+                    display_chain = chain
+                    break
 
-        company = display_chain["ticker"]
-        best_index, otm_percent_actual = self.find_best_index(display_chain, 15)
-        self.data_frame.loc[company, 'Stock Price'] = display_chain['current_value']
-        self.data_frame.loc[company, 'Strike'] = display_chain['options_chain']['calls'].iloc[best_index]['strike']
-        self.data_frame.loc[company, '%(OTM)'] = otm_percent_actual
-        self.data_frame.loc[company, 'Bid'] = display_chain['options_chain']['calls'].iloc[best_index]['bid']
-        self.data_frame.loc[company, 'Ask'] = display_chain['options_chain']['calls'].iloc[best_index]['ask']
-        roi_percent = round((display_chain['options_chain']['calls'].iloc[best_index]['bid'] / display_chain['current_value'] * 100), 2)
-        self.data_frame.loc[company, 'ROI(%) (Bid/Stock Price)'] = roi_percent
-        self.data_frame.loc[company, 'Implied Volatility'] = \
-            round(display_chain['options_chain']['calls'].iloc[best_index]['impliedVolatility'] *100, 2)
-        now = datetime.datetime.now()
-        expiration = datetime.datetime.strptime(self.expiration_var.get(), '%Y-%m-%d')
-        delta = (expiration - now).days
-        anual_roi_percent = 365/delta * roi_percent
-        self.data_frame.loc[company, 'Annual ROI(%)'] = round(anual_roi_percent,2)
-
+            company = display_chain["ticker"]
+            best_index, otm_percent_actual = self.find_best_index(display_chain, 15)
+            self.data_frame.loc[company, 'Stock Price'] = display_chain['current_value']
+            self.data_frame.loc[company, 'Strike'] = display_chain['options_chain']['calls'].iloc[best_index]['strike']
+            self.data_frame.loc[company, '%(OTM)'] = otm_percent_actual
+            self.data_frame.loc[company, 'Bid'] = display_chain['options_chain']['calls'].iloc[best_index]['bid']
+            self.data_frame.loc[company, 'Ask'] = display_chain['options_chain']['calls'].iloc[best_index]['ask']
+            roi_percent = round((display_chain['options_chain']['calls'].iloc[best_index]['bid'] / display_chain['current_value'] * 100), 2)
+            self.data_frame.loc[company, 'ROI(%) (Bid/Stock Price)'] = roi_percent
+            self.data_frame.loc[company, 'Implied Volatility'] = \
+                round(display_chain['options_chain']['calls'].iloc[best_index]['impliedVolatility'] *100, 2)
+            now = datetime.datetime.now()
+            expiration = datetime.datetime.strptime(self.expiration_var.get(), '%Y-%m-%d')
+            delta = (expiration - now).days
+            anual_roi_percent = 365/delta * roi_percent
+            self.data_frame.loc[company, 'Annual ROI(%)'] = round(anual_roi_percent,2)
+        except Exception as err:
+            print( str(err))
 
         self.table.redraw()
 

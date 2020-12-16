@@ -207,7 +207,7 @@ class FinanceWeb:
             current_time = current_time.replace(tzinfo=None)  # Want UTC with NO timezone info
             expire_dates = ticker.options
             for expire_date in expire_dates:
-                (is_third_friday, date, date_time) = self.is_third_friday(expire_date)
+                (is_third_friday, date, date_time) = self.is_third_friday(expire_date, allow_glitch=True)
                 if is_third_friday and look_a_heads > 0:
                     options_obj = ticker.option_chain(expire_date)
                     self.filter_garbage_options(options_obj)
@@ -253,12 +253,13 @@ class FinanceWeb:
         _filter_garbage(options_obj.calls)
         _filter_garbage(options_obj.puts)
 
-    def is_third_friday(self, time_str: str) -> (bool, str, datetime):
+    def is_third_friday(self, time_str: str, allow_glitch=False) -> (bool, str, datetime):
         d = datetime.strptime(time_str, '%Y-%m-%d')  # Eg "2020-10-08"
-        # Note - empirically we see that sometimes a thursday is returned, (rather than a Friday)
-        # No idea why however options expirations are Friday...
-        if d.weekday() == 3:
-            d = d + timedelta(days=1)
+        if(allow_glitch):
+            # Note - empirically we see that sometimes a thursday is returned, (rather than a Friday)
+            # No idea why however options expirations are Friday...
+            if d.weekday() == 3:
+                d = d + timedelta(days=1)
 
         if d.weekday() == 4 and 15 <= d.day <= 21:
             # # Also check that expiration date isn't more than 60 days out
