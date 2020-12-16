@@ -462,16 +462,15 @@ class GuiOptions(tk.ttk.Frame):
         self.status_label.pack(side=tk.BOTTOM, fill=tk.X, expand=False, ipadx=10, ipady=5)
 
     def show_positions(self):
-        positions = self.options_db.get_positions()
+        df_positions = self.options_db.get_positions()
         dialog_position = []
-        if len(positions) > 0:
-            for row in positions:
-                # TODO row indexing below is fragile!
-                open_date = row[4].strftime('%Y-%m-%d')
-                expire_date = self.options_db.get_expire_date_from_id(row[8]).strftime('%Y-%m-%d')
-                position = {'id': row[0], 'symbol': row[1], 'put_call': row[2], 'buy_sell': row[3],
-                            'open_date': open_date, 'option': row[6], 'strike': row[7],
-                            'expiration': expire_date}
+        if len(df_positions.index) > 0:
+            for index, row in df_positions.iterrows():
+                open_date = row["open_date"].strftime('%Y-%m-%d')
+                expire_date = self.options_db.get_expire_date_from_id(row["option_expire_id"]).strftime('%Y-%m-%d')
+                position = {'id': row["position_id"], 'symbol': row["symbol"], 'put_call': row["put_call"],
+                            'buy_sell': row["buy_sell"], 'open_date': open_date, 'option': row["option_price"],
+                            'strike': row["strike_price"], 'expiration': expire_date}
                 dialog_position.append(position)
 
             dict = {'positions': dialog_position, 'delete': False}

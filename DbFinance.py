@@ -83,6 +83,8 @@ class FinanceDB:
                          close_date TIMESTAMP,
                          option_price REAL NOT NULL,
                          strike_price REAL NOT NULL,
+                         stock_price_open REAL,
+                         stock_price_close REAL,
                          option_expire_id INTEGER,
                          UNIQUE( symbol, open_date, option_expire_id),
                          CONSTRAINT fk_option_expire
@@ -299,11 +301,17 @@ class FinanceDB:
         cursor.execute("DELETE FROM stock_price where option_expire_id = ? ", (expire_id,))
         self.connection.commit()
 
-    def get_positions(self):
+    def get_positions(self) -> pd.DataFrame:
         cursor = self.connection.cursor()
         cmd = "SELECT * FROM positions"
         cursor.execute(cmd)
-        return cursor.fetchall()
+        rows = np.array(cursor.fetchall())
+        df_data = rows[:, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]]  # stock_price_id, strike and bid
+        df = pd.DataFrame(data=df_data, columns=["position_id", "symbol", "put_call", "buy_sell",
+                                                 "open_date", "close_date", "option_price",
+                                                 "strike_price", "stock_price_open", "stock_price_close",
+                                                 "option_expire_id"])
+        return df
 
     def delete_position(self, position_id):
         cursor = self.connection.cursor()
