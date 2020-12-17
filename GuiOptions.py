@@ -11,6 +11,7 @@ import datetime
 # noinspection SpellCheckingInspection
 import tkcalendar as cal
 from DbFinance import FinanceDB
+from WebFinance import FinanceWeb
 from AddPosition import AddPosition as addPos
 from ListPositions import ListPositions as listPos
 
@@ -465,15 +466,24 @@ class GuiOptions(tk.ttk.Frame):
         df_positions = self.options_db.get_positions()
         dialog_position = []
         if len(df_positions.index) > 0:
-            for index, row in df_positions.iterrows():
-                open_date = row["open_date"].strftime('%Y-%m-%d')
-                expire_date = self.options_db.get_expire_date_from_id(row["option_expire_id"]).strftime('%Y-%m-%d')
-                position = {'id': row["position_id"], 'symbol': row["symbol"], 'put_call': row["put_call"],
-                            'buy_sell': row["buy_sell"], 'open_date': open_date, 'option': row["option_price"],
-                            'strike': row["strike_price"], 'expiration': expire_date}
-                dialog_position.append(position)
+            web = FinanceWeb()
+            # for index, row in df_positions.iterrows():
+            #     open_date = row["open_date"].strftime('%Y-%m-%d')
+            #     expire_date = self.options_db.get_expire_date_from_id(row["option_expire_id"]).strftime('%Y-%m-%d')
+            #     position = {'id': row["position_id"], 'symbol': row["symbol"], 'put_call': row["put_call"],
+            #                 'buy_sell': row["buy_sell"], 'open_date': open_date, 'option': row["option_price"],
+            #                 'strike': row["strike_price"], 'expiration': expire_date}
+            #     dialog_position.append(position)
 
-            dict = {'positions': dialog_position, 'delete': False}
+            expire_date_list = []
+            for index, row in df_positions.iterrows():
+                expire_date = self.options_db.get_expire_date_from_id(row["option_expire_id"]).strftime('%Y-%m-%d')
+                expire_date_list.append((expire_date))
+            df_positions.insert( len(df_positions.columns), "expire_date_str", expire_date_list)
+
+            current_stock_price = web.get_quotes_for_stock_series_yahoo(row["symbol"])
+
+            dict = {'positions': df_positions, 'delete': False, 'current_stock_price': current_stock_price}
 
             dialog = listPos(dict)
             self.tk_root.wait_window(dialog.top)

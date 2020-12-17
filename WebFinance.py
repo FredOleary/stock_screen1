@@ -94,30 +94,11 @@ class FinanceWeb:
 
     def get_quotes_for_stock_series_yahoo(self, stock_ticker):
         """ Return day series prices from yahoo finance. """
-        quotes = []
-        if self.read_from_file is False:
-            ticker = yf.Ticker(stock_ticker)
-            hist = ticker.history(period="ytd")
-
-            if "Close" in hist:
-                for i in range(len(hist.Close)):
-                    close_date = datetime.combine(hist.Close.axes[0].date[i], datetime.min.time())
-
-                    quotes.append({"date": close_date,
-                                   "open": hist.Open[i],
-                                   "high": hist.High[i],
-                                   "low": hist.Low[i],
-                                   "close": hist.Close[i]})
-
-                    if self.save_to_file is True:
-                        self.save_in_file(stock_ticker, quotes)
-
-            else:
-                if self.logger is not None:
-                    self.logger.error("Cannot get quotes for: " + stock_ticker)
-        else:
-            quotes = self.read_file(stock_ticker)
-        return quotes
+        current_value = None
+        ticker = yf.Ticker(stock_ticker)
+        history = ticker.history(period="1d", interval="1m")
+        current_value = history.Close[len(history.Close) - 1]
+        return current_value
 
     def read_file(self, stock_ticker):
         with open(stock_ticker + "_file.pkl", 'rb') as f:
