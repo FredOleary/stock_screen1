@@ -10,7 +10,8 @@ class OptionsScreenerWatch:
             {"symbol": "AMD", "name": "Advanced Micro Devices"},
             {"symbol": "LITE", "name": "Lumentum technologies"},
             {"symbol": "INTC", "name": "Intel Corporation"},
-            {"symbol": "QCOM", "name": "Qualcomm Inc"}
+            {"symbol": "QCOM", "name": "Qualcomm Inc"},
+            {"symbol": "BLNK", "name": "Blink Charging Co"}
         ]
 
     def get_companies(self):

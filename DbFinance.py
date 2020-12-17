@@ -80,9 +80,12 @@ class FinanceDB:
                          put_call TEXT NOT NULL,
                          buy_sell TEXT NOT NULL,
                          open_date TIMESTAMP NOT NULL,
+                         option_price_open REAL NOT NULL,
                          close_date TIMESTAMP,
-                         option_price REAL NOT NULL,
+                         option_price_close REAL,
                          strike_price REAL NOT NULL,
+                         stock_price_open REAL,
+                         stock_price_close REAL,
                          option_expire_id INTEGER,
                          UNIQUE( symbol, open_date, option_expire_id),
                          CONSTRAINT fk_option_expire
@@ -299,17 +302,30 @@ class FinanceDB:
         cursor.execute("DELETE FROM stock_price where option_expire_id = ? ", (expire_id,))
         self.connection.commit()
 
-    def get_positions(self):
+    def get_positions(self) -> pd.DataFrame:
         cursor = self.connection.cursor()
         cmd = "SELECT * FROM positions"
         cursor.execute(cmd)
-        return cursor.fetchall()
+        rows = np.array(cursor.fetchall())
+        df_data = rows[:, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]]  # stock_price_id, strike and bid
+        df = pd.DataFrame(data=df_data, columns=["position_id", "symbol", "put_call", "buy_sell",
+                                                 "open_date", "option_price_open",
+                                                 "close_date", "option_price_close",
+                                                 "strike_price", "stock_price_open", "stock_price_close",
+                                                 "option_expire_id"])
+        return df
 
     def delete_position(self, position_id):
         cursor = self.connection.cursor()
         cursor.execute("DELETE FROM positions where position_id = ? ", (position_id,))
         self.connection.commit()
 
+    def update_positions_field(self, position_id, column_name, value) -> None:
+        cursor = self.connection.cursor()
+        sql_query = "UPDATE positions SET {0} = ? WHERE position_id = ?".format(column_name)
+        cursor.execute(sql_query, (value, position_id))
+        self.connection.commit()
+        pass
 
     def get_expire_date_from_id(self, option_expire_id: int) -> datetime.datetime:
         cursor = self.connection.cursor()
@@ -318,11 +334,11 @@ class FinanceDB:
         return rows[0][0]
 
     def add_position(self, symbol: str, put_call:str, buy_sell: str, open_date: datetime.datetime,
-                     option_price: float, strike_price: float, option_expire_id: int) -> None:
+                     option_price_open: float, strike_price: float, option_expire_id: int) -> None:
         cursor = self.connection.cursor()
         cursor.execute("INSERT INTO positions(symbol, put_call, buy_sell, open_date,"
-                       "option_price, strike_price, option_expire_id) VALUES (?,?,?,?,?,?,?)",
-                       [symbol, put_call, buy_sell, open_date, option_price,
+                       "option_price_open, strike_price, option_expire_id) VALUES (?,?,?,?,?,?,?)",
+                       [symbol, put_call, buy_sell, open_date, option_price_open,
                         strike_price, option_expire_id])
         self.connection.commit()
 
