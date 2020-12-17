@@ -1,7 +1,24 @@
 import tkinter as tki
 import pandastable as pt
 import pandas as pd
-import numpy as np
+import datetime
+
+class ListTable(pt.Table):
+
+    def handleCellEntry(self, row, col):
+        super().handleCellEntry(row, col)
+        value = self.model.df.iloc[row,col]
+        ticker = self.model.df.loc[row,'Ticker']
+        column = self.model.df.columns[col]
+
+        if column == 'Closed':
+            date = datetime.datetime.strptime(value, '%Y-%m-%d')
+            pass
+        else:
+            print('changed:', row, col, "Unhandled")
+
+
+        return
 
 class ListPositions(object):
 
@@ -40,7 +57,7 @@ class ListPositions(object):
         pd_list.insert(8, "Stock Price(Close)", dict["positions"]["stock_price_close"])
         pd_list.insert(9, "Expiration", dict["positions"]["expire_date_str"])
 
-        self.table = pt.Table(table_container, dataframe=pd_list, width=930, showtoolbar=False, showstatusbar=False)
+        self.table = ListTable(table_container, dataframe=pd_list, width=930, showtoolbar=False, showstatusbar=False)
         self.table.show()
 
 
