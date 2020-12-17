@@ -485,10 +485,10 @@ class GuiOptions(tk.ttk.Frame):
 
             dict = {'positions': df_positions, 'delete': False, 'current_stock_price': current_stock_price}
 
-            dialog = listPos(dict)
+            dialog = listPos(dict, self.options_db)
             self.tk_root.wait_window(dialog.top)
             if dict["delete"]:
-                self.options_db.delete_position(dict["selected"]["id"])
+                self.options_db.delete_position(dict["position_id"])
         else:
             tk.messagebox.showinfo("No Positions", "There are no positions")
 
@@ -510,7 +510,7 @@ class GuiOptions(tk.ttk.Frame):
                                              dict["put_call"],
                                              dict["buy_sell"],
                                              open_date,
-                                             dict["option_price"],
+                                             dict["option_price_open"],
                                              dict["strike_price"],
                                              dict["option_expire_id"])
 

@@ -86,7 +86,7 @@ class AddPosition(object):
         try:
             strike = float(self.strike_entry.get())
             price = float(self.price_entry.get())
-            dict_key["option_price"] = price
+            dict_key["option_price_open"] = price
             dict_key["strike_price"] = strike
             dict_key["open_date"] = self.open_date.get()
             dict_key["put_call"] = "put" if self.put_call_value.get() == 2 else "call"

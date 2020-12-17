@@ -3,33 +3,39 @@ import pandastable as pt
 import pandas as pd
 import datetime
 
+
 class ListTable(pt.Table):
+    def __init__(self, options_db, table_container, pd_list, position_ids, width, showtoolbar, showstatusbar):
+        self.options_db = options_db
+        self.position_ids = position_ids
+        super(ListTable, self).__init__(table_container, dataframe=pd_list, width=width,
+                                            showtoolbar=showtoolbar, showstatusbar=showstatusbar)
 
-    def handleCellEntry(self, row, col):
+    def handleCellEntry(self, row, col) -> None:
         super().handleCellEntry(row, col)
-        value = self.model.df.iloc[row,col]
-        ticker = self.model.df.loc[row,'Ticker']
+        value = self.model.df.iloc[row, col]
+        ticker = self.model.df.loc[row, 'Ticker']
         column = self.model.df.columns[col]
+        if row < len(self.position_ids):
+            position_id = self.position_ids[row]
 
-        if column == 'Closed':
-            date = datetime.datetime.strptime(value, '%Y-%m-%d')
-            pass
-        else:
-            print('changed:', row, col, "Unhandled")
+            if column == 'Closed':
+                date = datetime.datetime.strptime(value, '%Y-%m-%d')
+                self.options_db.update_positions_field(position_id, "close_date", date)
+            elif column == 'Close Price':
+                self.options_db.update_positions_field(position_id, "option_price_close", value)
+            else:
+                print('changed:', row, col, "Unhandled")
 
 
-        return
+
 
 class ListPositions(object):
-
     root = None
 
-    def __init__(self, dict):
-        """
-        dict_key = <sequence> (dictionary, key) to associate with position
-        (providing a sequence for dict_key creates an entry for user input)
-        """
-        # tki = tkinter
+    def __init__(self, dict, options_db):
+
+        self.options_db = options_db
         self.top = tki.Toplevel(ListPositions.root)
         self.top.geometry('1000x300')
         self.top.grab_set()
@@ -47,19 +53,19 @@ class ListPositions(object):
         pd_list.insert(2, "Buy/Sell", dict["positions"]["buy_sell"])
         for index, row in dict["positions"].iterrows():
             open_date.append(row["open_date"].strftime('%Y-%m-%d'))
-            close_date.append(None if row["close_date"] is None else row["close_date"].strftime('%Y-%m-%d'))
+            close_date.append(None if row["close_date"] is None or row["close_date"] is pd.NaT else row["close_date"].strftime('%Y-%m-%d'))
 
         pd_list.insert(3, "Opened", open_date)
-        pd_list.insert(4, "Closed", close_date)
-        pd_list.insert(5, "Option Price", dict["positions"]["option_price"])
-        pd_list.insert(6, "Strike Price", dict["positions"]["strike_price"])
-        pd_list.insert(7, "Stock Price(Open)", dict["positions"]["stock_price_open"])
-        pd_list.insert(8, "Stock Price(Close)", dict["positions"]["stock_price_close"])
-        pd_list.insert(9, "Expiration", dict["positions"]["expire_date_str"])
+        pd_list.insert(4, "Open Price", dict["positions"]["option_price_open"])
+        pd_list.insert(5, "Closed", close_date)
+        pd_list.insert(5, "Close Price", dict["positions"]["option_price_close"])
+        pd_list.insert(7, "Strike Price", dict["positions"]["strike_price"])
+        pd_list.insert(8, "Stock Price(Open)", dict["positions"]["stock_price_open"])
+        pd_list.insert(9, "Stock Price(Close)", dict["positions"]["stock_price_close"])
+        pd_list.insert(10, "Expiration", dict["positions"]["expire_date_str"])
 
-        self.table = ListTable(table_container, dataframe=pd_list, width=930, showtoolbar=False, showstatusbar=False)
+        self.table = ListTable(self.options_db, table_container, pd_list, dict["positions"]["position_id"], 930, False, False)
         self.table.show()
-
 
         # self.list_box = tki.Listbox(frm, selectmode=tki.SINGLE, width=80, font="TkFixedFont")
         # for position in dict_key["positions"]:
@@ -75,19 +81,19 @@ class ListPositions(object):
         # self.list_box.select_set(0)
         # self.list_box.event_generate("<<ListboxSelect>>")
 
-
         b_ok = tki.Button(frm, text='Delete')
-        b_ok['command'] = lambda: self.delete_position(dict_key)
-        b_ok.grid(row=1, column= 0)
+        b_ok['command'] = lambda: self.delete_position(dict)
+        b_ok.grid(row=1, column=0)
 
         b_cancel = tki.Button(frm, text='Close')
         b_cancel['command'] = self.top.destroy
-        b_cancel.grid(row=1, column= 1)
+        b_cancel.grid(row=1, column=1)
 
-    def delete_position(self, dict_key):
+    def delete_position(self, dict):
         try:
-            dict_key["delete"] = True
-            dict_key["selected"] = dict_key["positions"][self.list_box.curselection()[0]]
+            dict["delete"] = True
+            selected_row = self.table.getSelectedRow()
+            dict["position_id"] = dict["positions"]["position_id"][selected_row]
             self.top.destroy()
         except ValueError:
             self.strike_entry.focus_set()
