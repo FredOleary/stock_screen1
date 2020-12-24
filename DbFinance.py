@@ -343,15 +343,15 @@ class FinanceDB:
         self.connection.commit()
 
     def search_positions(self, option_expire_id: int, strike_price: float) ->\
-            (datetime.datetime, datetime.datetime, float):
+            (datetime.datetime, float, datetime.datetime, float, float):
         cursor = self.connection.cursor()
         cursor.execute( "SELECT * FROM positions where option_expire_id = ? and strike_price = ?",
                         (option_expire_id, strike_price))
         rows = cursor.fetchall()
         if len(rows) > 0:
-            return rows[0][4], rows[0][5], rows[0][6]
+            return rows[0][4], rows[0][5], rows[0][6], rows[0][7], rows[0][8]
         else:
-            return None, None, None
+            return None, None, None, None, None
 
     def _create_verify_tables(self):
         # Get a list of all tables

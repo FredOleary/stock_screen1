@@ -239,8 +239,8 @@ class ChartOptions:
             symbol, options_for_expiration_key, start_date, end_date)
         if df_dates_and_stock_price is not None:
             # Check if there is a position for this option
-            open_date, close_date, position_strike_price = options_db.search_positions(
-                options_for_expiration_key, strike )
+            open_date, option_price_open, close_date, option_price_close, position_strike_price = \
+                options_db.search_positions(options_for_expiration_key, strike)
             x_dates = df_dates_and_stock_price["datetime"].to_numpy()
             stock_price_ids = df_dates_and_stock_price["stock_price_id"].to_numpy()
             self.stock_price = df_dates_and_stock_price["price"].to_numpy()
@@ -272,7 +272,7 @@ class ChartOptions:
                         if date > open_date:
                             ask_value = self.get_option_ask(row)
                             y_strikes_profit[stock_price_id_map[row["stock_price_id"]]] = \
-                                position_strike_price - ask_value
+                                option_price_open - ask_value
 
             indicies = np.arange(len(x_dates))
 

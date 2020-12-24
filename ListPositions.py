@@ -5,11 +5,10 @@ import datetime
 
 
 class ListTable(pt.Table):
-    def __init__(self, options_db, table_container, pd_list, position_ids, width, showtoolbar, showstatusbar):
+    def __init__(self, options_db, table_container, position_ids, **kwargs):
         self.options_db = options_db
         self.position_ids = position_ids
-        super(ListTable, self).__init__(table_container, dataframe=pd_list, width=width,
-                                            showtoolbar=showtoolbar, showstatusbar=showstatusbar)
+        super(ListTable, self).__init__(table_container, **kwargs)
 
     def handleCellEntry(self, row, col) -> None:
         super().handleCellEntry(row, col)
@@ -64,7 +63,14 @@ class ListPositions(object):
         pd_list.insert(9, "Stock Price(Close)", dict["positions"]["stock_price_close"])
         pd_list.insert(10, "Expiration", dict["positions"]["expire_date_str"])
 
-        self.table = ListTable(self.options_db, table_container, pd_list, dict["positions"]["position_id"], 930, False, False)
+        # super(ListTable, self).__init__(table_container, dataframe=pd_list, width=width,
+        #                                     showtoolbar=showtoolbar, showstatusbar=showstatusbar)
+
+        self.table = ListTable(self.options_db, table_container, dict["positions"]["position_id"],
+                               dataframe=pd_list,
+                               width=930,
+                               showtoolbar=False,
+                               showstatusbar= False)
         self.table.show()
 
         # self.list_box = tki.Listbox(frm, selectmode=tki.SINGLE, width=80, font="TkFixedFont")

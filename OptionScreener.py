@@ -11,6 +11,7 @@ import logging
 import logging.handlers
 import datetime
 
+import WebTradier
 from DbFinance import FinanceDB
 from OptionsScreenerWatch import OptionsScreenerWatch
 from WebFinance import FinanceWeb
@@ -72,6 +73,7 @@ class CallScreenerOptions(tk.ttk.Frame):
         expiration_list = self.get_expirations(look_a_heads)
         self.update_expiration(expiration_list)
         self.expiration_var.set(expiration_list[0])
+        self.temp()
         self.options_fetch = OptionsFetch(self.request_queue, self.response_queue)
         self.options_fetch.start()
         self.update_options()
@@ -259,6 +261,25 @@ class CallScreenerOptions(tk.ttk.Frame):
             index += 1
         return best_index, otm_percent_actual
 
+    def temp(self):
+        web = WebTradier.WebTradier(self.logger)
+        response_dict = web.get_quote("MAR")
+        if response_dict != {}:
+            print("pass")
+        else:
+            print("fail")
+
+        expirations_dict = web.get_expirations("MAR")
+        if expirations_dict != {}:
+            print("pass")
+        else:
+            print("fail")
+
+        options_dict = web.get_options_for_symbol("MAR")
+        if options_dict != {}:
+            print("pass")
+        else:
+            print("fail")
 
 def main():
     root = tk.Tk()
