@@ -12,21 +12,23 @@ import logging.handlers
 import datetime
 
 import WebTradier
+import Utilities
 from DbFinance import FinanceDB
 from OptionsScreenerWatch import OptionsScreenerWatch
-from WebFinance import FinanceWeb
 import pandas as pd
 from pandastable import Table
 from OptionsConfiguration import OptionsConfiguration
 
+
 class OptionsFetch(Thread):
-    def __init__(self, request_queue: Queue, response_queue: Queue) -> None:
+    def __init__(self, request_queue: Queue, response_queue: Queue, logger=None) -> None:
         Thread.__init__(self)
         self.request_queue = request_queue
         self.response_queue = response_queue
-        self.web = FinanceWeb()
+        self.logger = logger
+        # self.web = FinanceWeb()
+        self.web = WebTradier.WebTradier(self.logger)
         self.running = True
-
 
     def run(self):
         config = OptionsConfiguration()
@@ -34,15 +36,24 @@ class OptionsFetch(Thread):
         print("Starting OptionsFetch thread, look_a_heads = {0}".format(look_a_heads))
         while self.running:
             company = self.request_queue.get()
-            print("Request received")
             if type(company) == str and company == "QUIT":
                 self.running = False
             else:
-                options = self.web.get_options_for_stock_series_yahoo(company["symbol"],
-                                                                      strike_filter="OTM",
-                                                                      put_call="CALL",
-                                                                      look_a_heads=look_a_heads)
-                self.response_queue.put(options)
+                if self.logger:
+                    self.logger.info("Request received. {0} ({1}), expiration: {2}".format(
+                        company["symbol"], company["name"], company["expiration"]
+                    ))
+                try:
+                    options = self.web.get_options_for_symbol_and_expiration(company["symbol"],
+                                                                             company["expiration"],
+                                                                             strike_filter="OTM",
+                                                                             put_call="CALL")
+
+                    self.response_queue.put({'company': company, 'options': options})
+                except Exception as err:
+                    if self.logger:
+                        self.logger.error("OptionsFetch thread: Exception ", err.args[0])
+
 
 class CallScreenerOptions(tk.ttk.Frame):
 
@@ -61,7 +72,7 @@ class CallScreenerOptions(tk.ttk.Frame):
 
         self.init_ui()
         self.logger = self.create_logger()
-        self.web = FinanceWeb(self.logger)
+        # self.web = FinanceWeb(self.logger)
 
         self.options_db = FinanceDB()
         self.options_db.initialize()
@@ -74,7 +85,7 @@ class CallScreenerOptions(tk.ttk.Frame):
         self.update_expiration(expiration_list)
         self.expiration_var.set(expiration_list[0])
         self.temp()
-        self.options_fetch = OptionsFetch(self.request_queue, self.response_queue)
+        self.options_fetch = OptionsFetch(self.request_queue, self.response_queue, self.logger)
         self.options_fetch.start()
         self.update_options()
 
@@ -85,13 +96,12 @@ class CallScreenerOptions(tk.ttk.Frame):
         result = []
         while count > 0:
             date_str = expiration_date.strftime('%Y-%m-%d')
-            (is_third_friday, date, date_time) = self.web.is_third_friday( date_str)
+            (is_third_friday, date_time) = Utilities.is_third_friday(date_str)
             if is_third_friday:
                 result.append(date_time.strftime('%Y-%m-%d'))
                 count -= 1
             expiration_date += datetime.timedelta(days=1)
         return result
-
 
     # noinspection PyUnusedLocal
     def quit_app(self, event=None):
@@ -198,50 +208,63 @@ class CallScreenerOptions(tk.ttk.Frame):
 
             self.table.redraw()
 
-
     def update_options(self):
-        print("updating...")
-        self.status_var.set("Updating...")
-        for company in self.companies.get_companies():
-            self.request_queue.put( company)
-        self.status_var.set("")
+        if self.request_queue.empty():
+            self.status_var.set("Updating...")
+            for company in self.companies.get_companies():
+                company["expiration"] = self.expiration_var.get()
+                self.request_queue.put(company)
+            self.status_var.set("")
+        else:
+            if self.logger:
+                self.logger.info( "Request Queue not empty yet")
+
         self.tk_root.after(15000, self.update_options)
 
     def check_response(self):
         if not self.response_queue.empty():
             response = self.response_queue.get()
-            print("response received")
+            if self.logger:
+                if bool(response['options']):
+                    self.logger.info("Options received for {0}".format(response['company']['symbol']))
+                else:
+                    self.logger.warning("No Options received for {0}".format(response['company']['symbol']))
             self.update_company_in_table(response)
 
         self.tk_root.after(500, self.check_response)
 
     def update_company_in_table(self, response) -> None:
         try:
-            display_chain = response[0]
-            for chain in response:
-                chain_expire = chain['expire_date'].strftime('%Y-%m-%d')
-                if self.expiration_var.get() == chain_expire:
-                    display_chain = chain
-                    break
-
-            company = display_chain["ticker"]
-            best_index, otm_percent_actual = self.find_best_index(display_chain, 15)
-            self.data_frame.loc[company, 'Stock Price'] = display_chain['current_value']
-            self.data_frame.loc[company, 'Strike'] = display_chain['options_chain']['calls'].iloc[best_index]['strike']
-            self.data_frame.loc[company, '%(OTM)'] = otm_percent_actual
-            self.data_frame.loc[company, 'Bid'] = display_chain['options_chain']['calls'].iloc[best_index]['bid']
-            self.data_frame.loc[company, 'Ask'] = display_chain['options_chain']['calls'].iloc[best_index]['ask']
-            roi_percent = round((display_chain['options_chain']['calls'].iloc[best_index]['bid'] / display_chain['current_value'] * 100), 2)
-            self.data_frame.loc[company, 'ROI(%) (Bid/Stock Price)'] = roi_percent
-            self.data_frame.loc[company, 'Implied Volatility'] = \
-                round(display_chain['options_chain']['calls'].iloc[best_index]['impliedVolatility'] *100, 2)
-            now = datetime.datetime.now()
-            expiration = datetime.datetime.strptime(self.expiration_var.get(), '%Y-%m-%d')
-            delta = (expiration - now).days
-            anual_roi_percent = 365/delta * roi_percent
-            self.data_frame.loc[company, 'Annual ROI(%)'] = round(anual_roi_percent,2)
+            display_chain = response['options']
+            # for chain in response:
+            #     chain_expire = chain['expire_date'].strftime('%Y-%m-%d')
+            #     if self.expiration_var.get() == chain_expire:
+            #         display_chain = chain
+            #         break
+            if bool(display_chain):
+                company = display_chain["ticker"]
+                best_index, otm_percent_actual = self.find_best_index(display_chain, 15)
+                self.data_frame.loc[company, 'Stock Price'] = display_chain['current_value']
+                self.data_frame.loc[company, 'Strike'] = display_chain['options_chain']['calls'].iloc[best_index]['strike']
+                self.data_frame.loc[company, '%(OTM)'] = otm_percent_actual
+                self.data_frame.loc[company, 'Bid'] = display_chain['options_chain']['calls'].iloc[best_index]['bid']
+                self.data_frame.loc[company, 'Ask'] = display_chain['options_chain']['calls'].iloc[best_index]['ask']
+                roi_percent = round((display_chain['options_chain']['calls'].iloc[best_index]['bid'] / display_chain[
+                    'current_value'] * 100), 2)
+                self.data_frame.loc[company, 'ROI(%) (Bid/Stock Price)'] = roi_percent
+                self.data_frame.loc[company, 'Implied Volatility'] = \
+                    round(display_chain['options_chain']['calls'].iloc[best_index]['impliedVolatility'] * 100, 2)
+                now = datetime.datetime.now()
+                expiration = datetime.datetime.strptime(self.expiration_var.get(), '%Y-%m-%d')
+                delta = (expiration - now).days
+                anual_roi_percent = 365 / delta * roi_percent
+                self.data_frame.loc[company, 'Annual ROI(%)'] = round(anual_roi_percent, 2)
+            else:
+                if self.logger:
+                    self.logger.error( "No option available")
         except Exception as err:
-            print( str(err))
+            if self.logger:
+                self.logger.error(err)
 
         self.table.redraw()
 
@@ -263,23 +286,24 @@ class CallScreenerOptions(tk.ttk.Frame):
 
     def temp(self):
         web = WebTradier.WebTradier(self.logger)
-        response_dict = web.get_quote("MAR")
-        if response_dict != {}:
-            print("pass")
-        else:
-            print("fail")
+        # response_dict = web.get_quote("MAR")
+        # if response_dict != {}:
+        #     print("pass")
+        # else:
+        #     print("fail")
+        #
+        # expirations_dict = web.get_expirations("MAR")
+        # if expirations_dict != {}:
+        #     print("pass")
+        # else:
+        #     print("fail")
 
-        expirations_dict = web.get_expirations("MAR")
-        if expirations_dict != {}:
-            print("pass")
-        else:
-            print("fail")
-
-        options_dict = web.get_options_for_symbol("MAR")
+        options_dict = web.get_options_for_symbol_and_expiration("MAR", "2021-1-15")
         if options_dict != {}:
             print("pass")
         else:
             print("fail")
+
 
 def main():
     root = tk.Tk()

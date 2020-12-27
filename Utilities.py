@@ -14,10 +14,23 @@ def normalize_series(series: np.ndarray) -> np.ndarray:
         print("oh dear")
     return norm
 
-def is_third_friday(time_str: str) -> (bool, datetime.datetime):
+
+# def is_third_friday(time_str: str) -> (bool, datetime.datetime):
+#     d = datetime.datetime.strptime(time_str, '%Y-%m-%d')  # Eg "2020-10-08"
+#
+#     if d.weekday() == 4 and 15 <= d.day <= 21:
+#         return True, d
+#     return False, d
+
+
+def is_third_friday(time_str: str, allow_yahoo_glitch=False) -> (bool, datetime):
     d = datetime.datetime.strptime(time_str, '%Y-%m-%d')  # Eg "2020-10-08"
+    if(allow_yahoo_glitch):
+        # Note - empirically we see that sometimes a thursday is returned, (rather than a Friday)
+        # No idea why however options expirations are Friday...
+        if d.weekday() == 3:
+            d = d + datetime.timedelta(days=1)
 
     if d.weekday() == 4 and 15 <= d.day <= 21:
         return True, d
     return False, d
-
