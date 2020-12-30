@@ -25,8 +25,12 @@ class ListTable(pt.Table):
                 self.options_db.update_positions_field(position_id, "option_price_close", value)
             elif column == 'Open Price':
                 self.options_db.update_positions_field(position_id, "option_price_open", value)
+            elif column == 'Stock Price(Open)':
+                self.options_db.update_positions_field(position_id, "stock_price_open", value)
+            elif column == 'Stock Price(Close)':
+                self.options_db.update_positions_field(position_id, "stock_price_close", value)
             else:
-                print('changed:', row, col, "Unhandled")
+                print('changed:', row, column, "Unhandled")
 
 
 

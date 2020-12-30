@@ -189,7 +189,7 @@ class FinanceWeb:
             current_time = current_time.replace(tzinfo=None)  # Want UTC with NO timezone info
             expire_dates = ticker.options
             for expire_date in expire_dates:
-                (is_third_friday, date, date_time) = Utilities.is_third_friday(expire_date, allow_glitch=True)
+                (is_third_friday, date_time) = Utilities.is_third_friday(expire_date, allow_yahoo_glitch=True)
                 if is_third_friday and look_a_heads > 0:
                     options_obj = ticker.option_chain(expire_date)
                     self.filter_garbage_options(options_obj)
