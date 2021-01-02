@@ -22,7 +22,7 @@ import pytz
 import yfinance as yf
 from dateutil import parser
 from tzlocal import get_localzone
-
+import warnings
 
 # noinspection SpellCheckingInspection,PyMethodMayBeStatic,PyMethodMayBeStatic,PyMethodMayBeStatic,
 # PyMethodMayBeStatic,PyMethodMayBeStatic
@@ -34,6 +34,7 @@ class FinanceWeb:
     read_from_file = False
 
     def __init__(self, log=None):
+        warnings.warn("Class has been deprecated - Use APIYahoo/APITradier", DeprecationWarning, 2)
         self.logger = log
 
     # noinspection SpellCheckingInspection

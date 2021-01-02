@@ -11,7 +11,7 @@ import logging
 import logging.handlers
 import datetime
 
-import WebTradier
+import APITradier
 import Utilities
 from DbFinance import FinanceDB
 from OptionsScreenerWatch import OptionsScreenerWatch
@@ -27,7 +27,7 @@ class OptionsFetch(Thread):
         self.response_queue = response_queue
         self.logger = logger
         # self.web = FinanceWeb()
-        self.web = WebTradier.WebTradier(self.logger)
+        self.web = APITradier.APITradier(self.logger)
         self.running = True
 
     def run(self):
@@ -46,7 +46,6 @@ class OptionsFetch(Thread):
                 try:
                     options = self.web.get_options_for_symbol_and_expiration(company["symbol"],
                                                                              company["expiration"],
-                                                                             strike_filter="OTM",
                                                                              put_call="CALL")
 
                     self.response_queue.put({'company': company, 'options': options})
@@ -285,7 +284,7 @@ class CallScreenerOptions(tk.ttk.Frame):
         return best_index, otm_percent_actual
 
     def temp(self):
-        web = WebTradier.WebTradier(self.logger)
+        web = APITradier.APITradier(self.logger)
         # response_dict = web.get_quote("MAR")
         # if response_dict != {}:
         #     print("pass")

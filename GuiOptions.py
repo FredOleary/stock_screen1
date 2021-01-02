@@ -11,7 +11,7 @@ import datetime
 # noinspection SpellCheckingInspection
 import tkcalendar as cal
 from DbFinance import FinanceDB
-from WebFinance import FinanceWeb
+from APIYahoo import APIYahoo
 from AddPosition import AddPosition as addPos
 from ListPositions import ListPositions as listPos
 
@@ -466,7 +466,7 @@ class GuiOptions(tk.ttk.Frame):
         df_positions = self.options_db.get_positions()
         dialog_position = []
         if len(df_positions.index) > 0:
-            web = FinanceWeb()
+            web = APIYahoo()
             # for index, row in df_positions.iterrows():
             #     open_date = row["open_date"].strftime('%Y-%m-%d')
             #     expire_date = self.options_db.get_expire_date_from_id(row["option_expire_id"]).strftime('%Y-%m-%d')
@@ -481,9 +481,13 @@ class GuiOptions(tk.ttk.Frame):
                 expire_date_list.append((expire_date))
             df_positions.insert( len(df_positions.columns), "expire_date_str", expire_date_list)
 
-            current_stock_price = web.get_quotes_for_stock_series_yahoo(row["symbol"])
+            quote_dict = web.get_stock_price_for_symbol(row["symbol"])
+            if bool(quote_dict):
+                price = quote_dict["value"]
+            else:
+                price = None
 
-            dict = {'positions': df_positions, 'delete': False, 'current_stock_price': current_stock_price}
+            dict = {'positions': df_positions, 'delete': False, 'current_stock_price': price}
 
             dialog = listPos(dict, self.options_db)
             self.tk_root.wait_window(dialog.top)
