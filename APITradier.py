@@ -128,38 +128,39 @@ class APITradier(APIOptions):
         return header
 
     def __filter_options( self, option_chain, put_call, current_value ) -> pd.DataFrame:
-        dict = {'contractsSymbol': [], 'lastTradeDate': [], 'strike': [], 'lastPrice': [],
-                'bid': [], 'ask': [], 'change': [], 'volume': [], 'openInterest': [],
-                'impliedVolatility': [], 'inTheMoney': []}
-        #TDODO Fix case where option_chain['options] = None
-        for option in option_chain['options']['option']:
-            if option['option_type'].lower() == put_call.lower():
-                if option['trade_date'] > 0:
-                    dict['contractsSymbol'].append(option['symbol'])
-                    last_trade_date = datetime.datetime.utcfromtimestamp(option['trade_date']/1000)
-                    dict['lastTradeDate'].append(last_trade_date)
-                    dict['strike'].append(option['strike'])
-                    dict['lastPrice'].append(option['last'])
-                    dict['bid'].append(option['bid'])
-                    dict['ask'].append(option['ask'])
-                    if option['change'] is None:
-                        dict['change'].append(0.0)
-                    else:
-                        dict['change'].append(option['change'])
-                    dict['volume'].append(option['volume'])
-                    dict['openInterest'].append(option['open_interest'])
-                    if 'greeks' in option:
-                        dict['impliedVolatility'].append(option['greeks']['mid_iv'])
-                    else:
-                        dict['impliedVolatility'].append(None)
-                    in_the_money = True
-                    if put_call == 'CALL':
-                        if option['strike'] > current_value:
-                            in_the_money = False
-                    else:
-                        if option['strike'] < current_value:
-                            in_the_money = False
-                    dict['inTheMoney'].append(in_the_money)
+        df = {}
+        if option_chain['options'] is not None:
+            dict = {'contractsSymbol': [], 'lastTradeDate': [], 'strike': [], 'lastPrice': [],
+                    'bid': [], 'ask': [], 'change': [], 'volume': [], 'openInterest': [],
+                    'impliedVolatility': [], 'inTheMoney': []}
+            for option in option_chain['options']['option']:
+                if option['option_type'].lower() == put_call.lower():
+                    if option['trade_date'] > 0:
+                        dict['contractsSymbol'].append(option['symbol'])
+                        last_trade_date = datetime.datetime.utcfromtimestamp(option['trade_date']/1000)
+                        dict['lastTradeDate'].append(last_trade_date)
+                        dict['strike'].append(option['strike'])
+                        dict['lastPrice'].append(option['last'])
+                        dict['bid'].append(option['bid'])
+                        dict['ask'].append(option['ask'])
+                        if option['change'] is None:
+                            dict['change'].append(0.0)
+                        else:
+                            dict['change'].append(option['change'])
+                        dict['volume'].append(option['volume'])
+                        dict['openInterest'].append(option['open_interest'])
+                        if 'greeks' in option:
+                            dict['impliedVolatility'].append(option['greeks']['mid_iv'])
+                        else:
+                            dict['impliedVolatility'].append(None)
+                        in_the_money = True
+                        if put_call == 'CALL':
+                            if option['strike'] > current_value:
+                                in_the_money = False
+                        else:
+                            if option['strike'] < current_value:
+                                in_the_money = False
+                        dict['inTheMoney'].append(in_the_money)
 
-        df = pd.DataFrame.from_dict(dict)
+            df = pd.DataFrame.from_dict(dict)
         return df

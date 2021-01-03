@@ -243,21 +243,25 @@ class CallScreenerOptions(tk.ttk.Frame):
             if bool(display_chain):
                 company = display_chain["ticker"]
                 best_index, otm_percent_actual = self.find_best_index(display_chain, 15)
-                self.data_frame.loc[company, 'Stock Price'] = display_chain['current_value']
-                self.data_frame.loc[company, 'Strike'] = display_chain['options_chain']['calls'].iloc[best_index]['strike']
-                self.data_frame.loc[company, '%(OTM)'] = otm_percent_actual
-                self.data_frame.loc[company, 'Bid'] = display_chain['options_chain']['calls'].iloc[best_index]['bid']
-                self.data_frame.loc[company, 'Ask'] = display_chain['options_chain']['calls'].iloc[best_index]['ask']
-                roi_percent = round((display_chain['options_chain']['calls'].iloc[best_index]['bid'] / display_chain[
-                    'current_value'] * 100), 2)
-                self.data_frame.loc[company, 'ROI(%) (Bid/Stock Price)'] = roi_percent
-                self.data_frame.loc[company, 'Implied Volatility'] = \
-                    round(display_chain['options_chain']['calls'].iloc[best_index]['impliedVolatility'] * 100, 2)
-                now = datetime.datetime.now()
-                expiration = datetime.datetime.strptime(self.expiration_var.get(), '%Y-%m-%d')
-                delta = (expiration - now).days
-                anual_roi_percent = 365 / delta * roi_percent
-                self.data_frame.loc[company, 'Annual ROI(%)'] = round(anual_roi_percent, 2)
+                if best_index != -1:
+                    self.data_frame.loc[company, 'Stock Price'] = display_chain['current_value']
+                    self.data_frame.loc[company, 'Strike'] = display_chain['options_chain']['calls'].iloc[best_index]['strike']
+                    self.data_frame.loc[company, '%(OTM)'] = otm_percent_actual
+                    self.data_frame.loc[company, 'Bid'] = display_chain['options_chain']['calls'].iloc[best_index]['bid']
+                    self.data_frame.loc[company, 'Ask'] = display_chain['options_chain']['calls'].iloc[best_index]['ask']
+                    roi_percent = round((display_chain['options_chain']['calls'].iloc[best_index]['bid'] / display_chain[
+                        'current_value'] * 100), 2)
+                    self.data_frame.loc[company, 'ROI(%) (Bid/Stock Price)'] = roi_percent
+                    self.data_frame.loc[company, 'Implied Volatility'] = \
+                        round(display_chain['options_chain']['calls'].iloc[best_index]['impliedVolatility'] * 100, 2)
+                    now = datetime.datetime.now()
+                    expiration = datetime.datetime.strptime(self.expiration_var.get(), '%Y-%m-%d')
+                    delta = (expiration - now).days
+                    anual_roi_percent = 365 / delta * roi_percent
+                    self.data_frame.loc[company, 'Annual ROI(%)'] = round(anual_roi_percent, 2)
+                else:
+                    if self.logger:
+                        self.logger.error("No option available for {0}".format(company))
             else:
                 if self.logger:
                     self.logger.error( "No option available")
@@ -272,16 +276,19 @@ class CallScreenerOptions(tk.ttk.Frame):
         otm_percent_actual = math.nan
         index = 0
         current_delta = 100
-        while index < len(chain['options_chain']['calls']):
-            diff = chain['options_chain']['calls'].iloc[index]['strike'] - chain['current_value']
-            percent_diff = (diff / chain['current_value'] * 100)
-            delta = otm_percent - percent_diff
-            if abs(delta) < current_delta:
-                current_delta = delta
-                best_index = index
-                otm_percent_actual = round(percent_diff, 2)
-            index += 1
-        return best_index, otm_percent_actual
+        if len( chain['options_chain']['calls']) > 0:
+            while index < len(chain['options_chain']['calls']):
+                diff = chain['options_chain']['calls'].iloc[index]['strike'] - chain['current_value']
+                percent_diff = (diff / chain['current_value'] * 100)
+                delta = otm_percent - percent_diff
+                if abs(delta) < current_delta:
+                    current_delta = delta
+                    best_index = index
+                    otm_percent_actual = round(percent_diff, 2)
+                index += 1
+            return best_index, otm_percent_actual
+        else:
+            return -1, 0
 
     def temp(self):
         web = APITradier.APITradier(self.logger)
@@ -297,7 +304,7 @@ class CallScreenerOptions(tk.ttk.Frame):
         # else:
         #     print("fail")
 
-        options_dict = web.get_options_for_symbol_and_expiration("MAR", "2021-1-15")
+        options_dict = web.get_options_for_symbol_and_expiration("VZ", "2021-03-19")
         if options_dict != {}:
             print("pass")
         else:
