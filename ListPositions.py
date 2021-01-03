@@ -42,7 +42,7 @@ class ListPositions(object):
 
         self.options_db = options_db
         self.top = tki.Toplevel(ListPositions.root)
-        self.top.geometry('1000x300')
+        self.top.geometry('1500x300')
         self.top.grab_set()
 
         frm = tki.Frame(self.top, borderwidth=4, relief='ridge')
@@ -63,18 +63,20 @@ class ListPositions(object):
         pd_list.insert(3, "Opened", open_date)
         pd_list.insert(4, "Open Price", dict["positions"]["option_price_open"])
         pd_list.insert(5, "Closed", close_date)
-        pd_list.insert(5, "Close Price", dict["positions"]["option_price_close"])
-        pd_list.insert(7, "Strike Price", dict["positions"]["strike_price"])
-        pd_list.insert(8, "Stock Price(Open)", dict["positions"]["stock_price_open"])
-        pd_list.insert(9, "Stock Price(Close)", dict["positions"]["stock_price_close"])
-        pd_list.insert(10, "Expiration", dict["positions"]["expire_date_str"])
+        pd_list.insert(6, "Close Price", dict["positions"]["option_price_close"])
+        pd_list.insert(7, "Current Price", dict["positions"]["current_option_price"])
+        pd_list.insert(8, "Strike Price", dict["positions"]["strike_price"])
+        pd_list.insert(9, "Stock Price(Open)", dict["positions"]["stock_price_open"])
+        pd_list.insert(10, "Stock Price(Current)", dict["positions"]["current_stock_price"])
+        pd_list.insert(11, "Stock Price(Close)", dict["positions"]["stock_price_close"])
+        pd_list.insert(12, "Expiration", dict["positions"]["expire_date_str"])
 
         # super(ListTable, self).__init__(table_container, dataframe=pd_list, width=width,
         #                                     showtoolbar=showtoolbar, showstatusbar=showstatusbar)
 
         self.table = ListTable(self.options_db, table_container, dict["positions"]["position_id"],
                                dataframe=pd_list,
-                               width=930,
+                               width=1230,
                                showtoolbar=False,
                                showstatusbar= False)
         self.table.show()

@@ -467,27 +467,31 @@ class GuiOptions(tk.ttk.Frame):
         dialog_position = []
         if len(df_positions.index) > 0:
             web = APIYahoo()
-            # for index, row in df_positions.iterrows():
-            #     open_date = row["open_date"].strftime('%Y-%m-%d')
-            #     expire_date = self.options_db.get_expire_date_from_id(row["option_expire_id"]).strftime('%Y-%m-%d')
-            #     position = {'id': row["position_id"], 'symbol': row["symbol"], 'put_call': row["put_call"],
-            #                 'buy_sell': row["buy_sell"], 'open_date': open_date, 'option': row["option_price"],
-            #                 'strike': row["strike_price"], 'expiration': expire_date}
-            #     dialog_position.append(position)
 
             expire_date_list = []
+            current_stock_price_list =[]
+            current_option_price_list = []
             for index, row in df_positions.iterrows():
                 expire_date = self.options_db.get_expire_date_from_id(row["option_expire_id"]).strftime('%Y-%m-%d')
                 expire_date_list.append((expire_date))
-            df_positions.insert( len(df_positions.columns), "expire_date_str", expire_date_list)
+                option = web.get_options_for_symbol_and_expiration(row["symbol"], expire_date)
+                if bool(option):
+                    current_stock_price_list.append(option["current_value"])
+                    current_option_price_list.append(self.__get_option_price_for_position(row, option))
+                else:
+                    current_stock_price_list.append(None)
+                    current_option_price_list.append(None)
+            df_positions.insert(len(df_positions.columns), "expire_date_str", expire_date_list)
+            df_positions.insert(len(df_positions.columns), "current_stock_price", current_stock_price_list)
+            df_positions.insert(len(df_positions.columns), "current_option_price", current_option_price_list)
 
-            quote_dict = web.get_stock_price_for_symbol(row["symbol"])
-            if bool(quote_dict):
-                price = quote_dict["value"]
-            else:
-                price = None
+            # quote_dict = web.get_stock_price_for_symbol(row["symbol"])
+            # if bool(quote_dict):
+            #     price = quote_dict["value"]
+            # else:
+            #     price = None
 
-            dict = {'positions': df_positions, 'delete': False, 'current_stock_price': price}
+            dict = {'positions': df_positions, 'delete': False}
 
             dialog = listPos(dict, self.options_db)
             self.tk_root.wait_window(dialog.top)
@@ -517,6 +521,22 @@ class GuiOptions(tk.ttk.Frame):
                                              dict["option_price_open"],
                                              dict["strike_price"],
                                              dict["option_expire_id"])
+
+    def __get_option_price_for_position(self, row, option):
+        option_price = None
+        if row["put_call"] == "call":
+            options = option['options_chain']['calls']
+        else:
+            options = option['options_chain']['puts']
+        for index, option_strike in options.iterrows():
+            if option_strike['strike'] == row['strike_price']:
+                if row["buy_sell"] == "sell":
+                    option_price = option_strike['ask']     #To close, must buy back options at higher price
+                else:
+                    option_price = option_strike['bid']     #To close, must sell back options at lower price
+                break
+        return option_price
+
 
     def init_menus(self):
         self.menu_bar = tk.Menu(self.tk_root)
