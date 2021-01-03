@@ -131,6 +131,7 @@ class APITradier(APIOptions):
         dict = {'contractsSymbol': [], 'lastTradeDate': [], 'strike': [], 'lastPrice': [],
                 'bid': [], 'ask': [], 'change': [], 'volume': [], 'openInterest': [],
                 'impliedVolatility': [], 'inTheMoney': []}
+        #TDODO Fix case where option_chain['options] = None
         for option in option_chain['options']['option']:
             if option['option_type'].lower() == put_call.lower():
                 if option['trade_date'] > 0:
