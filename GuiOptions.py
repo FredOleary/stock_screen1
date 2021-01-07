@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import tkinter as tk
+import pandas as pd
 from tkinter.ttk import Style
 from tkinter import messagebox
 import sys
@@ -11,7 +12,7 @@ import datetime
 # noinspection SpellCheckingInspection
 import tkcalendar as cal
 from DbFinance import FinanceDB
-from APIYahoo import APIYahoo
+import Utilities
 from AddPosition import AddPosition as addPos
 from ListPositions import ListPositions as listPos
 
@@ -418,7 +419,7 @@ class GuiOptions(tk.ttk.Frame):
         start_date_label.pack(side=tk.TOP, padx=5, pady=2)
 
         self.start_cal = cal.DateEntry(start_date_container, width=12, background='darkblue',
-                                       foreground='white', borderwidth=2, year=2020)
+                                       foreground='white', borderwidth=2)
         self.start_cal.pack(side=tk.BOTTOM, padx=5, pady=5)
         self.start_cal.bind('<<DateEntrySelected>>', self.start_date_changed)
 
@@ -428,7 +429,7 @@ class GuiOptions(tk.ttk.Frame):
         end_date_label.pack(side=tk.TOP, padx=5, pady=2)
 
         self.end_cal = cal.DateEntry(end_date_container, width=12, background='darkblue',
-                                     foreground='white', borderwidth=2, year=2020)
+                                     foreground='white', borderwidth=2)
         self.end_cal.pack(side=tk.BOTTOM, padx=5, pady=5)
         self.end_cal.bind('<<DateEntrySelected>>', self.end_date_changed)
 
@@ -466,7 +467,7 @@ class GuiOptions(tk.ttk.Frame):
         df_positions = self.options_db.get_positions()
         dialog_position = []
         if len(df_positions.index) > 0:
-            web = APIYahoo()
+            web = Utilities.get_options_API()
 
             expire_date_list = []
             current_stock_price_list =[]
@@ -475,7 +476,8 @@ class GuiOptions(tk.ttk.Frame):
                 expire_date = self.options_db.get_expire_date_from_id(row["option_expire_id"]).strftime('%Y-%m-%d')
                 expire_date_list.append((expire_date))
                 option = web.get_options_for_symbol_and_expiration(row["symbol"], expire_date)
-                if bool(option):
+                if bool(option) and pd.isnull(row["close_date"]):
+                    # If the position is closed, we don't care what the current prices are
                     current_stock_price_list.append(option["current_value"])
                     current_option_price_list.append(self.__get_option_price_for_position(row, option))
                 else:
@@ -528,13 +530,16 @@ class GuiOptions(tk.ttk.Frame):
             options = option['options_chain']['calls']
         else:
             options = option['options_chain']['puts']
-        for index, option_strike in options.iterrows():
-            if option_strike['strike'] == row['strike_price']:
-                if row["buy_sell"] == "sell":
-                    option_price = option_strike['ask']     #To close, must buy back options at higher price
-                else:
-                    option_price = option_strike['bid']     #To close, must sell back options at lower price
-                break
+        if len(options) > 0:
+            for index, option_strike in options.iterrows():
+                if option_strike['strike'] == row['strike_price']:
+                    # Use the mid price ???
+                    option_price = (option_strike['ask'] + option_strike['bid'])/2
+                    # if row["buy_sell"] == "sell":
+                    #     option_price = option_strike['ask']     #To close, must buy back options at higher price
+                    # else:
+                    #     option_price = option_strike['bid']     #To close, must sell back options at lower price
+                    break
         return option_price
 
 

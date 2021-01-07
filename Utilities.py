@@ -2,6 +2,11 @@ import numpy as np
 import pandas as pd
 import math
 import datetime
+import APIOptions
+import APITradier
+import APIYahoo
+from OptionsConfiguration import OptionsConfiguration
+
 
 def normalize_series(series: np.ndarray) -> np.ndarray:
     norm = []
@@ -15,14 +20,6 @@ def normalize_series(series: np.ndarray) -> np.ndarray:
     return norm
 
 
-# def is_third_friday(time_str: str) -> (bool, datetime.datetime):
-#     d = datetime.datetime.strptime(time_str, '%Y-%m-%d')  # Eg "2020-10-08"
-#
-#     if d.weekday() == 4 and 15 <= d.day <= 21:
-#         return True, d
-#     return False, d
-
-
 def is_third_friday(time_str: str, allow_yahoo_glitch=False) -> (bool, datetime):
     d = datetime.datetime.strptime(time_str, '%Y-%m-%d')  # Eg "2020-10-08"
     if(allow_yahoo_glitch):
@@ -34,6 +31,7 @@ def is_third_friday(time_str: str, allow_yahoo_glitch=False) -> (bool, datetime)
     if d.weekday() == 4 and 15 <= d.day <= 21:
         return True, d
     return False, d
+
 
 def filter_by_date(option: {}, time_delta_in_days: int) -> {}:
     option['options_chain']['calls'] = __filter_put_call_by_date(option['options_chain']['calls'], time_delta_in_days)
@@ -97,3 +95,10 @@ def __decimate_option(df_option: pd.DataFrame, max_puts_calls: int):
     df_out = df_option.drop(delete_rows)
     return df_out
 
+
+def get_options_API( logger=None) -> APIOptions.APIOptions:
+    configuration = OptionsConfiguration()
+    if (configuration.get_configuration())["api_options"] == "APITradier":
+        return APITradier.APITradier(logger)
+    else:
+        return APIYahoo.APIYahoo(logger)

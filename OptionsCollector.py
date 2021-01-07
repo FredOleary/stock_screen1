@@ -3,12 +3,9 @@ import logging.handlers
 import sys
 import time
 
-# from WebFinance import FinanceWeb
-from APITradier import APITradier
 from DbFinance import FinanceDB
 from OptionsWatch import OptionsWatch
 from OptionsConfiguration import OptionsConfiguration
-from datetime import timedelta
 import Utilities
 
 # noinspection SpellCheckingInspection
@@ -35,7 +32,7 @@ def create_logger():
 
 def process_options():
     logger = create_logger()
-    web = APITradier(logger)
+    web = Utilities.get_options_API(logger)
     logger.info("Application started")
     companies = OptionsWatch()
     options_db = FinanceDB(companies.options_list, logger)

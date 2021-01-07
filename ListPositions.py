@@ -9,6 +9,7 @@ class ListTable(pt.Table):
         self.options_db = options_db
         self.position_ids = position_ids
         super(ListTable, self).__init__(table_container, **kwargs)
+        table_container.pack(fill='x', expand=True)
 
     def handleCellEntry(self, row, col) -> None:
         super().handleCellEntry(row, col)
@@ -42,14 +43,14 @@ class ListPositions(object):
 
         self.options_db = options_db
         self.top = tki.Toplevel(ListPositions.root)
-        self.top.geometry('1500x300')
+        self.top.geometry('1300x300')
         self.top.grab_set()
 
         frm = tki.Frame(self.top, borderwidth=4, relief='ridge')
         frm.pack(fill='both', expand=True)
 
         table_container = tki.ttk.Frame(frm)
-        table_container.grid(row=0, column=0, columnspan=2)
+        # table_container.grid(row=0, column=0, columnspan=2)
         pd_list = pd.DataFrame()
         open_date = []
         close_date = []
@@ -97,11 +98,13 @@ class ListPositions(object):
 
         b_ok = tki.Button(frm, text='Delete')
         b_ok['command'] = lambda: self.delete_position(dict)
-        b_ok.grid(row=1, column=0)
+        b_ok.pack(side=tki.LEFT, padx=200)
+        # b_ok.grid(row=1, column=0)
 
         b_cancel = tki.Button(frm, text='Close')
         b_cancel['command'] = self.top.destroy
-        b_cancel.grid(row=1, column=1)
+        b_cancel.pack(side=tki.RIGHT, padx=200)
+        # b_cancel.grid(row=1, column=1)
 
     def delete_position(self, dict):
         try:
