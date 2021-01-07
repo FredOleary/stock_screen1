@@ -11,7 +11,9 @@ class OptionsScreenerWatch:
             {"symbol": "LITE", "name": "Lumentum technologies"},
             {"symbol": "INTC", "name": "Intel Corporation"},
             {"symbol": "QCOM", "name": "Qualcomm Inc"},
-            {"symbol": "BLNK", "name": "Blink Charging Co"}
+            {"symbol": "BLNK", "name": "Blink Charging Co"},
+            {"symbol": "PCG", "name": "PG&E Co"},
+            {"symbol": "NVDA", "name": "NVIDIA"}
         ]
 
     def get_companies(self):

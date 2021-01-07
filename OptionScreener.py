@@ -11,7 +11,7 @@ import logging
 import logging.handlers
 import datetime
 
-import WebTradier
+# import APITradier
 import Utilities
 from DbFinance import FinanceDB
 from OptionsScreenerWatch import OptionsScreenerWatch
@@ -27,7 +27,7 @@ class OptionsFetch(Thread):
         self.response_queue = response_queue
         self.logger = logger
         # self.web = FinanceWeb()
-        self.web = WebTradier.WebTradier(self.logger)
+        self.web = Utilities.get_options_API(self.logger)
         self.running = True
 
     def run(self):
@@ -46,7 +46,6 @@ class OptionsFetch(Thread):
                 try:
                     options = self.web.get_options_for_symbol_and_expiration(company["symbol"],
                                                                              company["expiration"],
-                                                                             strike_filter="OTM",
                                                                              put_call="CALL")
 
                     self.response_queue.put({'company': company, 'options': options})
@@ -171,12 +170,13 @@ class CallScreenerOptions(tk.ttk.Frame):
         for company in self.companies.get_companies():
             table_dict[company["symbol"]] = [company["symbol"], math.nan, math.nan,
                                              math.nan, math.nan, math.nan, math.nan,
-                                             math.nan, math.nan]
+                                             math.nan, math.nan, math.nan, math.nan]
 
         self.data_frame = pd.DataFrame.from_dict(table_dict, orient='index',
                                                  columns=['Ticker', 'Stock Price', 'Strike', '%(OTM)',
                                                           'Bid', 'Ask', 'ROI(%) (Bid/Stock Price)',
-                                                          'Annual ROI(%)', 'Implied Volatility'])
+                                                          'Annual ROI(%)', 'Implied Volatility',
+                                                          'Delta', 'Theta'])
         self.table = Table(self.call_screener_frame, dataframe=self.data_frame,
                            showtoolbar=False, showstatusbar=True)
         self.table.show()
@@ -205,6 +205,8 @@ class CallScreenerOptions(tk.ttk.Frame):
                 self.data_frame.loc[row['Ticker'], 'ROI(%) (Bid/Stock Price)'] = math.nan
                 self.data_frame.loc[row['Ticker'], 'Annual ROI(%)'] = math.nan
                 self.data_frame.loc[row['Ticker'], 'Implied Volatility'] = math.nan
+                self.data_frame.loc[row['Ticker'], 'Delta'] = math.nan
+                self.data_frame.loc[row['Ticker'], 'Theta'] = math.nan
 
             self.table.redraw()
 
@@ -244,21 +246,31 @@ class CallScreenerOptions(tk.ttk.Frame):
             if bool(display_chain):
                 company = display_chain["ticker"]
                 best_index, otm_percent_actual = self.find_best_index(display_chain, 15)
-                self.data_frame.loc[company, 'Stock Price'] = display_chain['current_value']
-                self.data_frame.loc[company, 'Strike'] = display_chain['options_chain']['calls'].iloc[best_index]['strike']
-                self.data_frame.loc[company, '%(OTM)'] = otm_percent_actual
-                self.data_frame.loc[company, 'Bid'] = display_chain['options_chain']['calls'].iloc[best_index]['bid']
-                self.data_frame.loc[company, 'Ask'] = display_chain['options_chain']['calls'].iloc[best_index]['ask']
-                roi_percent = round((display_chain['options_chain']['calls'].iloc[best_index]['bid'] / display_chain[
-                    'current_value'] * 100), 2)
-                self.data_frame.loc[company, 'ROI(%) (Bid/Stock Price)'] = roi_percent
-                self.data_frame.loc[company, 'Implied Volatility'] = \
-                    round(display_chain['options_chain']['calls'].iloc[best_index]['impliedVolatility'] * 100, 2)
-                now = datetime.datetime.now()
-                expiration = datetime.datetime.strptime(self.expiration_var.get(), '%Y-%m-%d')
-                delta = (expiration - now).days
-                anual_roi_percent = 365 / delta * roi_percent
-                self.data_frame.loc[company, 'Annual ROI(%)'] = round(anual_roi_percent, 2)
+                if best_index != -1:
+                    self.data_frame.loc[company, 'Stock Price'] = display_chain['current_value']
+                    self.data_frame.loc[company, 'Strike'] = display_chain['options_chain']['calls'].iloc[best_index]['strike']
+                    self.data_frame.loc[company, '%(OTM)'] = otm_percent_actual
+                    self.data_frame.loc[company, 'Bid'] = display_chain['options_chain']['calls'].iloc[best_index]['bid']
+                    self.data_frame.loc[company, 'Ask'] = display_chain['options_chain']['calls'].iloc[best_index]['ask']
+                    roi_percent = round((display_chain['options_chain']['calls'].iloc[best_index]['bid'] / display_chain[
+                        'current_value'] * 100), 2)
+                    self.data_frame.loc[company, 'ROI(%) (Bid/Stock Price)'] = roi_percent
+                    self.data_frame.loc[company, 'Implied Volatility'] = \
+                        round(display_chain['options_chain']['calls'].iloc[best_index]['impliedVolatility'] * 100, 2)
+                    now = datetime.datetime.now()
+                    expiration = datetime.datetime.strptime(self.expiration_var.get(), '%Y-%m-%d')
+                    delta = (expiration - now).days
+                    anual_roi_percent = 365 / delta * roi_percent
+                    self.data_frame.loc[company, 'Annual ROI(%)'] = round(anual_roi_percent, 2)
+                    if 'delta'in display_chain['options_chain']['calls'].columns:
+                        self.data_frame.loc[company, 'Delta'] = \
+                            display_chain['options_chain']['calls'].iloc[best_index]['delta']
+                    if 'theta' in display_chain['options_chain']['calls'].columns:
+                        self.data_frame.loc[company, 'Theta'] = \
+                            display_chain['options_chain']['calls'].iloc[best_index]['theta']
+                else:
+                    if self.logger:
+                        self.logger.error("No option available for {0}".format(company))
             else:
                 if self.logger:
                     self.logger.error( "No option available")
@@ -273,19 +285,22 @@ class CallScreenerOptions(tk.ttk.Frame):
         otm_percent_actual = math.nan
         index = 0
         current_delta = 100
-        while index < len(chain['options_chain']['calls']):
-            diff = chain['options_chain']['calls'].iloc[index]['strike'] - chain['current_value']
-            percent_diff = (diff / chain['current_value'] * 100)
-            delta = otm_percent - percent_diff
-            if abs(delta) < current_delta:
-                current_delta = delta
-                best_index = index
-                otm_percent_actual = round(percent_diff, 2)
-            index += 1
-        return best_index, otm_percent_actual
+        if len( chain['options_chain']['calls']) > 0:
+            while index < len(chain['options_chain']['calls']):
+                diff = chain['options_chain']['calls'].iloc[index]['strike'] - chain['current_value']
+                percent_diff = (diff / chain['current_value'] * 100)
+                delta = otm_percent - percent_diff
+                if abs(delta) < current_delta:
+                    current_delta = delta
+                    best_index = index
+                    otm_percent_actual = round(percent_diff, 2)
+                index += 1
+            return best_index, otm_percent_actual
+        else:
+            return -1, 0
 
     def temp(self):
-        web = WebTradier.WebTradier(self.logger)
+        web = Utilities.get_options_API(self.logger)
         # response_dict = web.get_quote("MAR")
         # if response_dict != {}:
         #     print("pass")
@@ -298,7 +313,7 @@ class CallScreenerOptions(tk.ttk.Frame):
         # else:
         #     print("fail")
 
-        options_dict = web.get_options_for_symbol_and_expiration("MAR", "2021-1-15")
+        options_dict = web.get_options_for_symbol_and_expiration("MAR", "2021-02-19")
         if options_dict != {}:
             print("pass")
         else:

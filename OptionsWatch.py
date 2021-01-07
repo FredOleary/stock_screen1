@@ -8,7 +8,8 @@ class OptionsWatch:
             {"symbol": "T", "name": "AT&T"},
             {"symbol": "VZ", "name": "Verizon"},
             {"symbol": "AMD", "name": "Advanced Micro Devices"},
-            {"symbol": "BLNK", "name": "Blink charging"}
+            {"symbol": "BLNK", "name": "Blink charging"},
+            {"symbol": "PCG", "name": "PG&E corporation"}
 
         ]
 

@@ -3,11 +3,10 @@ import logging.handlers
 import sys
 import time
 
-from WebFinance import FinanceWeb
 from DbFinance import FinanceDB
 from OptionsWatch import OptionsWatch
 from OptionsConfiguration import OptionsConfiguration
-
+import Utilities
 
 # noinspection SpellCheckingInspection
 def create_logger():
@@ -33,7 +32,7 @@ def create_logger():
 
 def process_options():
     logger = create_logger()
-    web = FinanceWeb(logger)
+    web = Utilities.get_options_API(logger)
     logger.info("Application started")
     companies = OptionsWatch()
     options_db = FinanceDB(companies.options_list, logger)
@@ -46,8 +45,24 @@ def process_options():
     repeat_get_quotes = True
     while repeat_get_quotes:
         for company in companies.get_companies():
-            options = web.get_options_for_stock_series_yahoo(company["symbol"], look_a_heads=look_a_heads)
+            options = web.get_options_for_symbol(company["symbol"], look_a_heads=look_a_heads)
             if len(options) > 0:
+                for option in options:
+                    logger.info("{0}(Before filter). Expires {1}. {2} Calls, {3} Puts".format(
+                          option["ticker"],
+                          option['expire_date'].strftime("%Y-%m-%d"),
+                          len(option["options_chain"]["calls"]),
+                          len(option["options_chain"]["puts"])))
+                    Utilities.filter_by_date(option, 10)
+                    Utilities.filter_by_at_the_money(option, 30, 50)
+                    Utilities.decimate_options(option, 50)
+
+                    logger.info("{0}(After filter). Expires {1}. {2} Calls, {3} Puts".format(
+                          option["ticker"],
+                          option['expire_date'].strftime("%Y-%m-%d"),
+                          len(option["options_chain"]["calls"]),
+                          len(option["options_chain"]["puts"])))
+
                 options_db.add_option_quote(options)
 
         if len(sys.argv) > 1:
@@ -58,6 +73,7 @@ def process_options():
                 repeat_get_quotes = False
         else:
             repeat_get_quotes = False
+
 
 
 if __name__ == '__main__':
