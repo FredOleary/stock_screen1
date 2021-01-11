@@ -20,6 +20,7 @@ from ChartOptions import ChartOptions
 from matplotlib.backends.backend_tkagg import (FigureCanvasTkAgg, NavigationToolbar2Tk)
 from matplotlib.figure import Figure
 from dateutil import parser
+import argparse
 
 
 class GuiOptions(tk.ttk.Frame):
@@ -50,12 +51,21 @@ class GuiOptions(tk.ttk.Frame):
         self.bid_extrinsic_value = tk.IntVar(self)
 
         self.init_ui()
+        parser = argparse.ArgumentParser()
+        parser.add_argument('-d', '--db', action='store', type=str, help="Database to use")
+
+        args = parser.parse_args()
+        database = args.db
+
         self.clear_symbol_menu()
         self.clear_expiration_menu()
         self.clear_strike_menu()
         self.toggle_date_filter()
         self.update_chart_button_enable()
-        self.options_db = FinanceDB()
+        if database is not None:
+            self.options_db = FinanceDB(db_name_schema=database)
+        else:
+            self.options_db = FinanceDB()
         self.options_db.initialize()
         self.get_symbols()
         self.extrinsic_value_radio = None

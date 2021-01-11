@@ -290,6 +290,8 @@ class ChartOptions:
             ax2 = ax.twinx()
             ax2.set_ylabel("Stock price", color="red")
             ax2.plot(indicies, self.stock_price, color="red")
+            fig.sca(ax)
+            # fig.axes(ax)
 
             return True
         else:

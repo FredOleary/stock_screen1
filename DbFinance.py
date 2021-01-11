@@ -15,10 +15,10 @@ import datetime
 class FinanceDB:
     """ Storage for news/prices etc """
 
-    def __init__(self, stock_data=None, logger=None):
+    def __init__(self, stock_data=None, logger=None, db_name_schema="stock_options"):
         self.connection = None
         self.logger = logger
-        self.db_name = "stock_options"
+        self.db_name = db_name_schema
         self.stock_data = stock_data
         self.tables = [{"name": "stocks",
                         "create_sql": """ CREATE TABLE IF NOT EXISTS stocks (
@@ -114,38 +114,42 @@ class FinanceDB:
         if len(quotes) > 0:
             try:
                 for quote in quotes:
-                    cursor = self.connection.cursor()
-                    cursor.execute("SELECT * FROM option_expire WHERE symbol = ? AND expire_date = ?",
-                                   [quote["ticker"], quote["expire_date"]])
-                    rows = cursor.fetchall()
-                    if not rows:
-                        cursor.execute("INSERT INTO option_expire(symbol, expire_date) VALUES (?,?)",
-                                       (quote["ticker"],
-                                        quote["expire_date"]))
-                        option_expire_id = cursor.lastrowid
-                    else:
-                        option_expire_id = rows[0][0]
-                    cursor.execute("SELECT * FROM stock_price WHERE symbol = ? AND time = ? AND option_expire_id = ?",
-                                   [quote["ticker"], quote["current_time"], option_expire_id])
-                    rows = cursor.fetchall()
-                    if not rows:  # empty - record does not exist
-                        cursor.execute(
-                            "INSERT INTO stock_price(symbol, time, price, option_expire_id) VALUES (?,?,?,?)",
-                            (quote["ticker"],
-                             quote["current_time"],
-                             quote["current_value"],
-                             option_expire_id))
+                    if len(quote['options_chain']['calls']) > 0 or len(quote['options_chain']['puts']) > 0:
+                        cursor = self.connection.cursor()
+                        cursor.execute("SELECT * FROM option_expire WHERE symbol = ? AND expire_date = ?",
+                                       [quote["ticker"], quote["expire_date"]])
+                        rows = cursor.fetchall()
+                        if not rows:
+                            cursor.execute("INSERT INTO option_expire(symbol, expire_date) VALUES (?,?)",
+                                           (quote["ticker"],
+                                            quote["expire_date"]))
+                            option_expire_id = cursor.lastrowid
+                        else:
+                            option_expire_id = rows[0][0]
+                        cursor.execute("SELECT * FROM stock_price WHERE symbol = ? AND time = ? AND option_expire_id = ?",
+                                       [quote["ticker"], quote["current_time"], option_expire_id])
+                        rows = cursor.fetchall()
+                        if not rows:  # empty - record does not exist
+                            cursor.execute(
+                                "INSERT INTO stock_price(symbol, time, price, option_expire_id) VALUES (?,?,?,?)",
+                                (quote["ticker"],
+                                 quote["current_time"],
+                                 quote["current_value"],
+                                 option_expire_id))
 
-                        rowid = cursor.lastrowid
-                    else:
-                        rowid = rows[0][0]  # Existing rowid
-                    if rowid != -1:
-                        self.insert_put_call(cursor, True, rowid, quote['options_chain']['calls'], option_expire_id,
-                                             quote["current_value"])
-                        self.insert_put_call(cursor, False, rowid, quote['options_chain']['puts'], option_expire_id,
-                                             quote["current_value"])
+                            rowid = cursor.lastrowid
+                        else:
+                            rowid = rows[0][0]  # Existing rowid
+                        if rowid != -1:
+                            self.insert_put_call(cursor, True, rowid, quote['options_chain']['calls'], option_expire_id,
+                                                 quote["current_value"])
+                            self.insert_put_call(cursor, False, rowid, quote['options_chain']['puts'], option_expire_id,
+                                                 quote["current_value"])
 
-                self.connection.commit()
+                        self.connection.commit()
+                    else:
+                        if self.logger is not None:
+                            self.logger.info("No options for {0}, expiration {1}".format(quote["ticker"], quote["expire_date"]))
                 # print("value added for time: ", quote["time"])
             except Exception as err:
                 if self.logger is not None:
@@ -307,13 +311,15 @@ class FinanceDB:
         cmd = "SELECT * FROM positions"
         cursor.execute(cmd)
         rows = np.array(cursor.fetchall())
-        df_data = rows[:, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]]  # stock_price_id, strike and bid
-        df = pd.DataFrame(data=df_data, columns=["position_id", "symbol", "put_call", "buy_sell",
-                                                 "open_date", "option_price_open",
-                                                 "close_date", "option_price_close",
-                                                 "strike_price", "stock_price_open", "stock_price_close",
-                                                 "option_expire_id"])
-        return df
+        if len(rows) > 0:
+            df_data = rows[:, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]]  # stock_price_id, strike and bid
+            df = pd.DataFrame(data=df_data, columns=["position_id", "symbol", "put_call", "buy_sell",
+                                                     "open_date", "option_price_open",
+                                                     "close_date", "option_price_close",
+                                                     "strike_price", "stock_price_open", "stock_price_close",
+                                                     "option_expire_id"])
+            return df
+        return pd.DataFrame()
 
     def delete_position(self, position_id):
         cursor = self.connection.cursor()
