@@ -3,6 +3,7 @@ import logging.handlers
 import sys
 import time
 import argparse
+import datetime
 
 from DbFinance import FinanceDB
 from OptionsWatch import OptionsWatch
@@ -66,32 +67,40 @@ def process_options():
     look_a_heads = (configuration.get_configuration())["collector_look_ahead_expirations"]
     repeat_get_quotes = True
     while repeat_get_quotes:
-        for company in companies.get_companies():
-            if expiration is not None:
-                options = [web.get_options_for_symbol_and_expiration(company["symbol"], expiration)]
+        start_time = Utilities.convert_time_str_to_datetime(
+            (configuration.get_configuration())['collector_start_time_pst'], 'US/Pacific')
+        end_time = Utilities.convert_time_str_to_datetime(
+            (configuration.get_configuration())['collector_end_time_pst'], 'US/Pacific')
+        now = datetime.datetime.now()
 
-            else:
-                options = web.get_options_for_symbol(company["symbol"], look_a_heads=look_a_heads)
-            if len(options) > 0:
-                for option in options:
-                    logger.info("{0}(Before filter). Expires {1}. {2} Calls, {3} Puts".format(
-                          option["ticker"],
-                          option['expire_date'].strftime("%Y-%m-%d"),
-                          len(option["options_chain"]["calls"]),
-                          len(option["options_chain"]["puts"])))
-                    if len(option["options_chain"]["puts"]) > 0 and len(option["options_chain"]["calls"]) > 0:
-                        Utilities.filter_by_date(option, 10)
-                        Utilities.filter_by_at_the_money(option, 30, 50)
-                        Utilities.decimate_options(option, 50)
+        if start_time.time() <= now.time() <= end_time.time():
+            for company in companies.get_companies():
+                if expiration is not None:
+                    options = [web.get_options_for_symbol_and_expiration(company["symbol"], expiration)]
 
-                        logger.info("{0}(After filter). Expires {1}. {2} Calls, {3} Puts".format(
+                else:
+                    options = web.get_options_for_symbol(company["symbol"], look_a_heads=look_a_heads)
+                if len(options) > 0:
+                    for option in options:
+                        logger.info("{0}(Before filter). Expires {1}. {2} Calls, {3} Puts".format(
                               option["ticker"],
                               option['expire_date'].strftime("%Y-%m-%d"),
                               len(option["options_chain"]["calls"]),
                               len(option["options_chain"]["puts"])))
+                        if len(option["options_chain"]["puts"]) > 0 and len(option["options_chain"]["calls"]) > 0:
+                            Utilities.filter_by_date(option, 10)
+                            Utilities.filter_by_at_the_money(option, 30, 50)
+                            Utilities.decimate_options(option, 50)
 
-                options_db.add_option_quote(options)
+                            logger.info("{0}(After filter). Expires {1}. {2} Calls, {3} Puts".format(
+                                  option["ticker"],
+                                  option['expire_date'].strftime("%Y-%m-%d"),
+                                  len(option["options_chain"]["calls"]),
+                                  len(option["options_chain"]["puts"])))
 
+                    options_db.add_option_quote(options)
+        else:
+            logger.info("Time is outside options hours. No readings taken")
         if repeat:
             logger.info("Sleeping for {delay} seconds".format(delay=update_rate))
             time.sleep(update_rate)

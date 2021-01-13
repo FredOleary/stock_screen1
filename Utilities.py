@@ -6,7 +6,7 @@ import APIOptions
 import APITradier
 import APIYahoo
 from OptionsConfiguration import OptionsConfiguration
-
+import pytz
 
 def normalize_series(series: np.ndarray) -> np.ndarray:
     norm = []
@@ -102,3 +102,16 @@ def get_options_API( logger=None) -> APIOptions.APIOptions:
         return APITradier.APITradier(logger)
     else:
         return APIYahoo.APIYahoo(logger)
+
+
+def convert_panda_time_to_time_zone(panda_datetime:pd.datetime, format_str: str, output_tz: str) -> str:
+    date_time = pd.to_datetime(panda_datetime)
+    date_time_with_tz = date_time.replace(tzinfo=pytz.UTC)
+    date_time_with_tz = date_time_with_tz.astimezone(pytz.timezone(output_tz))
+    return date_time_with_tz.strftime(format_str)
+
+
+def convert_time_str_to_datetime(time_str: str, tz: str) -> datetime.datetime:
+    date_time_obj = datetime.datetime.strptime(time_str, '%H:%M')
+    time_zone = pytz.timezone(tz)
+    return time_zone.localize(date_time_obj)
