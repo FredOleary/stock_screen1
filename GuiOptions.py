@@ -6,7 +6,6 @@ from tkinter.ttk import Style
 from tkinter import messagebox
 import sys
 
-import matplotlib.pyplot as plt
 # noinspection SpellCheckingInspection
 import datetime
 # noinspection SpellCheckingInspection
@@ -23,6 +22,7 @@ from dateutil import parser
 import argparse
 
 
+# noinspection PyUnusedLocal
 class GuiOptions(tk.ttk.Frame):
 
     def __init__(self, root):
@@ -51,10 +51,10 @@ class GuiOptions(tk.ttk.Frame):
         self.bid_extrinsic_value = tk.IntVar(self)
 
         self.init_ui()
-        parser = argparse.ArgumentParser()
-        parser.add_argument('-d', '--db', action='store', type=str, help="Database to use")
+        arg_parser = argparse.ArgumentParser()
+        arg_parser.add_argument('-d', '--db', action='store', type=str, help="Database to use")
 
-        args = parser.parse_args()
+        args = arg_parser.parse_args()
         database = args.db
 
         self.clear_symbol_menu()
@@ -166,6 +166,7 @@ class GuiOptions(tk.ttk.Frame):
             else:
                 self.status_var.set("No data available")
 
+    # noinspection PyUnusedLocal
     def create_strike_profit_chart(self, event=None):
         self.close_button.focus_force()
         self.status_var.set("Creating strike chart...")
@@ -369,18 +370,6 @@ class GuiOptions(tk.ttk.Frame):
         self.close_button.pack(side=tk.RIGHT, padx=5, pady=5)
         self.close_button.bind('<Button-1>', self.quit_app)
 
-        # self.line_chart_button = tk.ttk.Button(tool_bar, text="Line Chart")
-        # self.line_chart_button.pack(side=tk.LEFT, padx=5, pady=5)
-        # self.line_chart_button.bind('<Button-1>', self.create_line_chart)
-
-        # self.surface_chart_button = tk.ttk.Button(tool_bar, text="Surface Chart")
-        # self.surface_chart_button.pack(side=tk.LEFT, padx=5, pady=5)
-        # self.surface_chart_button.bind('<Button-1>', self.create_surface_chart)
-
-        # self.strike_chart_button = tk.ttk.Button(tool_bar, text="Strike Chart")
-        # self.strike_chart_button.pack(side=tk.LEFT, padx=5, pady=5)
-        # self.strike_chart_button.bind('<Button-1>', self.create_strike_chart)
-
         self.delete_option_button = tk.ttk.Button(tool_bar, text="Delete option")
         self.delete_option_button.pack(side=tk.LEFT, padx=5, pady=5)
         self.delete_option_button.bind('<Button-1>', self.delete_option)
@@ -475,16 +464,15 @@ class GuiOptions(tk.ttk.Frame):
 
     def show_positions(self):
         df_positions = self.options_db.get_positions()
-        dialog_position = []
         if len(df_positions.index) > 0:
             web = Utilities.get_options_API()
 
             expire_date_list = []
-            current_stock_price_list =[]
+            current_stock_price_list = []
             current_option_price_list = []
             for index, row in df_positions.iterrows():
                 expire_date = self.options_db.get_expire_date_from_id(row["option_expire_id"]).strftime('%Y-%m-%d')
-                expire_date_list.append((expire_date))
+                expire_date_list.append(expire_date)
                 option = web.get_options_for_symbol_and_expiration(row["symbol"], expire_date)
                 if bool(option) and pd.isnull(row["close_date"]):
                     # If the position is closed, we don't care what the current prices are
@@ -503,12 +491,12 @@ class GuiOptions(tk.ttk.Frame):
             # else:
             #     price = None
 
-            dict = {'positions': df_positions, 'delete': False}
+            position_info = {'positions': df_positions, 'delete': False}
 
-            dialog = listPos(dict, self.options_db)
+            dialog = listPos(position_info, self.options_db)
             self.tk_root.wait_window(dialog.top)
-            if dict["delete"]:
-                self.options_db.delete_position(dict["position_id"])
+            if position_info["delete"]:
+                self.options_db.delete_position(position_info["position_id"])
         else:
             tk.messagebox.showinfo("No Positions", "There are no positions")
 
@@ -517,24 +505,25 @@ class GuiOptions(tk.ttk.Frame):
             row = self.shadow_expiration[self.expiration_var.get()]
             option_expire_id = row['option_expire_id']
 
-            dict = {'symbol': self.symbol_var.get(),
-                    'expiration_str': self.expiration_var.get(),
-                    'option_expire_id': option_expire_id,
-                    'added': False}
+            position_info = {'symbol': self.symbol_var.get(),
+                             'expiration_str': self.expiration_var.get(),
+                             'option_expire_id': option_expire_id,
+                             'added': False}
 
-            dialog = addPos(dict)
+            dialog = addPos(position_info)
             self.tk_root.wait_window(dialog.top)
-            if dict["added"]:
-                open_date = parser.parse(dict["open_date"])
-                self.options_db.add_position(dict["symbol"],
-                                             dict["put_call"],
-                                             dict["buy_sell"],
+            if position_info["added"]:
+                open_date = parser.parse(position_info["open_date"])
+                self.options_db.add_position(position_info["symbol"],
+                                             position_info["put_call"],
+                                             position_info["buy_sell"],
                                              open_date,
-                                             dict["option_price_open"],
-                                             dict["strike_price"],
-                                             dict["option_expire_id"])
+                                             position_info["option_price_open"],
+                                             position_info["strike_price"],
+                                             position_info["option_expire_id"])
 
-    def __get_option_price_for_position(self, row, option):
+    @staticmethod
+    def __get_option_price_for_position(row, option):
         option_price = None
         if row["put_call"] == "call":
             options = option['options_chain']['calls']
@@ -544,7 +533,7 @@ class GuiOptions(tk.ttk.Frame):
             for index, option_strike in options.iterrows():
                 if option_strike['strike'] == row['strike_price']:
                     # Use the mid price ???
-                    option_price = (option_strike['ask'] + option_strike['bid'])/2
+                    option_price = (option_strike['ask'] + option_strike['bid']) / 2
                     # if row["buy_sell"] == "sell":
                     #     option_price = option_strike['ask']     #To close, must buy back options at higher price
                     # else:
@@ -552,7 +541,7 @@ class GuiOptions(tk.ttk.Frame):
                     break
         return option_price
 
-
+    # noinspection PyAttributeOutsideInit,PyAttributeOutsideInit,PyAttributeOutsideInit
     def init_menus(self):
         self.menu_bar = tk.Menu(self.tk_root)
         self.positions_menu = tk.Menu(self.menu_bar, tearoff=0)
