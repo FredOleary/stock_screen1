@@ -8,15 +8,10 @@ Created on Thu Aug  3 11:15:04 2017
 
 # from yahoo_finance import Share
 
-import json
-import pickle
-import urllib.request
 from datetime import datetime
-from datetime import timedelta
 from datetime import timezone
 
 import Utilities
-import pandas
 import yfinance as yf
 from APIOptions import APIOptions
 
@@ -31,11 +26,12 @@ class APIYahoo(APIOptions):
     read_from_file = False
 
     def __init__(self, logger=None):
+        super().__init__()
         self.logger = logger
 
     def get_stock_price_for_symbol(self, symbol: str) -> {}:
         if self.logger is not None:
-            self.logger.info("Get stock price for {0}".format( symbol))
+            self.logger.info("Get stock price for {0}".format(symbol))
         ticker = yf.Ticker(symbol)
         history = ticker.history(period="1d", interval="1m")
         current_value = history.Close[len(history.Close) - 1]
@@ -66,7 +62,7 @@ class APIYahoo(APIOptions):
                     options = {'ticker': symbol,
                                'current_value': current_value,
                                'current_time': current_time,
-                               'expire_date':  ex_required,
+                               'expire_date': ex_required,
                                'options_chain': filtered_options}
                     break
         except Exception as err:

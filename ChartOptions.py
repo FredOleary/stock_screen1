@@ -103,7 +103,7 @@ class ChartOptions:
         self.option_type = option_type
         df_dates_and_stock_price = options_db.get_date_times_for_expiration_df(
             symbol, options_for_expiration_key, start_date, end_date)
-        if df_dates_and_stock_price is not None:
+        if not df_dates_and_stock_price.empty:
             self.x_dates = df_dates_and_stock_price["datetime"].to_numpy()
             stock_price_ids = df_dates_and_stock_price["stock_price_id"].to_numpy()
             self.stock_price = df_dates_and_stock_price["price"].to_numpy()
@@ -256,7 +256,7 @@ class ChartOptions:
         self.option_type = option_type
         df_dates_and_stock_price = options_db.get_date_times_for_expiration_df(
             symbol, options_for_expiration_key, start_date, end_date)
-        if df_dates_and_stock_price is not None:
+        if not df_dates_and_stock_price.empty:
             # Check if there is a position for this option
             open_date, option_price_open, close_date, option_price_close, position_strike_price = \
                 options_db.search_positions(options_for_expiration_key, strike)
@@ -300,11 +300,15 @@ class ChartOptions:
             indicies = np.arange(len(x_dates))
 
             ax = fig.add_subplot(111)
-            ax.plot(indicies, y_strikes_bid, label="{0} (bid)".format(strike))
-            ax.plot(indicies, y_strikes_ask, label="{0} (ask)".format(strike))
-            ax.plot(indicies, y_strikes_extrinsic, label="{0} (extrinsic)".format(strike))
+            ax.plot(indicies, y_strikes_bid, label="Bid, (var = {0})".format(
+                util.calculate_variance(y_strikes_bid)))
+            ax.plot(indicies, y_strikes_ask, label="Ask, (var = {0})".format(
+                util.calculate_variance(y_strikes_ask)))
+            ax.plot(indicies, y_strikes_extrinsic, label="Extrinsic, (var = {0})".format(
+                util.calculate_variance(y_strikes_extrinsic)))
             if open_date is not None:
-                ax.plot(indicies, y_strikes_profit, label="{0} (profit)".format(strike))
+                ax.plot(indicies, y_strikes_profit, label="Profit, (var = {0})".format(
+                    util.calculate_variance(y_strikes_profit)))
 
             legend = ax.legend(loc='upper left')
             legend.get_frame().set_alpha(0.4)
@@ -313,7 +317,10 @@ class ChartOptions:
 
             ax2 = ax.twinx()
             ax2.set_ylabel("Stock price", color="black")
-            ax2.plot(indicies, self.stock_price, color="black")
+            ax2.plot(indicies, self.stock_price, color="black", label="Stock Price, (var = {0})".format(
+                util.calculate_variance(self.stock_price)))
+
+            legend2 = ax2.legend(loc='upper right')
 
             ax2.format_coord = make_format(ax2, ax, x_dates)
 
@@ -342,7 +349,7 @@ class ChartOptions:
 
         df_dates_and_stock_price = options_db.get_date_times_for_expiration_df(
             symbol, options_for_expiration_key, start_date, end_date)
-        if df_dates_and_stock_price is not None:
+        if not df_dates_and_stock_price.empty:
             x_dates = df_dates_and_stock_price["datetime"].to_numpy()
             stock_price_ids = df_dates_and_stock_price["stock_price_id"].to_numpy()
             self.stock_price = df_dates_and_stock_price["price"].to_numpy()
@@ -350,10 +357,12 @@ class ChartOptions:
                                                                            strike,
                                                                            put_call=put_call)
             y_strikes_bid = np.empty(x_dates.size)
+            y_strikes_ask = np.empty(x_dates.size)
             y_strikes_extrinsic = np.empty(x_dates.size)
             y_strikes_IV = np.empty(x_dates.size)
 
             y_strikes_bid.fill(math.nan)
+            y_strikes_ask.fill(math.nan)
             y_strikes_extrinsic.fill(math.nan)
             y_strikes_IV.fill(math.nan)
             stock_price_id_map = create_index_map(stock_price_ids)
@@ -363,6 +372,7 @@ class ChartOptions:
                     # Bid value
                     value = self.get_option_value(row, put_call, 'bid')
                     y_strikes_bid[stock_price_id_map[row["stock_price_id"]]] = value
+                    y_strikes_ask[stock_price_id_map[row["stock_price_id"]]] = self.get_option_ask(row)
                     # extrinsic value
                     value = self.get_option_value(row, put_call, 'extrinsic')
                     y_strikes_extrinsic[stock_price_id_map[row["stock_price_id"]]] = value
@@ -371,10 +381,11 @@ class ChartOptions:
             indicies = np.arange(len(x_dates))
 
             ax = fig.add_subplot(111)
-            ax.plot(indicies, util.normalize_series(y_strikes_bid), label="{0} (bid)".format(strike))
-            ax.plot(indicies, util.normalize_series(y_strikes_extrinsic), label="{0} (extrinsic)".format(strike))
-            ax.plot(indicies, util.normalize_series(self.stock_price), label="{0} (stock price)".format(strike))
-            ax.plot(indicies, util.normalize_series(y_strikes_IV), label="{0} (Implied Volatility)".format(strike))
+            ax.plot(indicies, util.normalize_series(y_strikes_bid), label="Bid".format(strike))
+            ax.plot(indicies, util.normalize_series(y_strikes_ask), label="Ask".format(strike))
+            ax.plot(indicies, util.normalize_series(y_strikes_extrinsic), label="Extrinsic".format(strike))
+            ax.plot(indicies, util.normalize_series(self.stock_price), label="Stock price".format(strike))
+            ax.plot(indicies, util.normalize_series(y_strikes_IV), label="Implied Volatility".format(strike))
 
             legend = ax.legend(loc='upper left')
             legend.get_frame().set_alpha(0.4)

@@ -8,21 +8,22 @@ import APIYahoo
 from OptionsConfiguration import OptionsConfiguration
 import pytz
 
-def normalize_series(series: np.ndarray) -> np.ndarray:
+
+def normalize_series(series: np.ndarray) -> []:
     norm = []
     series_no_nans = series[~pd.isnull(series)]
-    min = np.min(series_no_nans)
-    max = np.max(series_no_nans)
+    min_value = np.min(series_no_nans)
+    max_value = np.max(series_no_nans)
     try:
-        norm = [(val-min)/(max-min) if val is not math.nan else math.nan for val in series]
-    except:
-        print("oh dear")
+        norm = [(val-min_value)/(max_value-min_value) if val is not math.nan else math.nan for val in series]
+    except Exception as err:
+        print(err)
     return norm
 
 
 def is_third_friday(time_str: str, allow_yahoo_glitch=False) -> (bool, datetime):
     d = datetime.datetime.strptime(time_str, '%Y-%m-%d')  # Eg "2020-10-08"
-    if(allow_yahoo_glitch):
+    if allow_yahoo_glitch:
         # Note - empirically we see that sometimes a thursday is returned, (rather than a Friday)
         # No idea why however options expirations are Friday...
         if d.weekday() == 3:
@@ -42,8 +43,8 @@ def filter_by_date(option: {}, time_delta_in_days: int) -> {}:
 def __filter_put_call_by_date(df_option: pd.DataFrame, time_delta_in_days) -> pd.DataFrame:
     delete_rows = []
     for index, row in df_option.iterrows():
-        lastTrade = row["lastTradeDate"].to_pydatetime()
-        delta = datetime.datetime.now() - lastTrade
+        last_trade = row["lastTradeDate"].to_pydatetime()
+        delta = datetime.datetime.now() - last_trade
         if delta.days >= time_delta_in_days:
             delete_rows.append(index)
     df_out = df_option.drop(delete_rows)
@@ -96,7 +97,7 @@ def __decimate_option(df_option: pd.DataFrame, max_puts_calls: int):
     return df_out
 
 
-def get_options_API( logger=None) -> APIOptions.APIOptions:
+def get_options_API(logger=None) -> APIOptions.APIOptions:
     configuration = OptionsConfiguration()
     if (configuration.get_configuration())["api_options"] == "APITradier":
         return APITradier.APITradier(logger)
@@ -104,7 +105,7 @@ def get_options_API( logger=None) -> APIOptions.APIOptions:
         return APIYahoo.APIYahoo(logger)
 
 
-def convert_panda_time_to_time_zone(panda_datetime:pd.datetime, format_str: str, output_tz: str) -> str:
+def convert_panda_time_to_time_zone(panda_datetime: pd.datetime, format_str: str, output_tz: str) -> str:
     date_time = pd.to_datetime(panda_datetime)
     date_time_with_tz = date_time.replace(tzinfo=pytz.UTC)
     date_time_with_tz = date_time_with_tz.astimezone(pytz.timezone(output_tz))
@@ -115,3 +116,8 @@ def convert_time_str_to_datetime(time_str: str, tz: str) -> datetime.datetime:
     date_time_obj = datetime.datetime.strptime(time_str, '%H:%M')
     time_zone = pytz.timezone(tz)
     return time_zone.localize(date_time_obj)
+
+
+def calculate_variance(series: np.ndarray) -> float:
+    series_no_nans = series[~pd.isnull(series)]
+    return round(float(np.var(series_no_nans)), 2)

@@ -1,3 +1,4 @@
+# noinspection SpellCheckingInspection
 class CompanyWatch:
     """ Declares the companies to be watched """
     def __init__(self):

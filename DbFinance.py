@@ -95,7 +95,7 @@ class FinanceDB:
 
                      ); """}
 
-                    ]
+                       ]
 
     def initialize(self):
         """ Initialize database connection and tables """
@@ -126,8 +126,9 @@ class FinanceDB:
                             option_expire_id = cursor.lastrowid
                         else:
                             option_expire_id = rows[0][0]
-                        cursor.execute("SELECT * FROM stock_price WHERE symbol = ? AND time = ? AND option_expire_id = ?",
-                                       [quote["ticker"], quote["current_time"], option_expire_id])
+                        cursor.execute(
+                            "SELECT * FROM stock_price WHERE symbol = ? AND time = ? AND option_expire_id = ?",
+                            [quote["ticker"], quote["current_time"], option_expire_id])
                         rows = cursor.fetchall()
                         if not rows:  # empty - record does not exist
                             cursor.execute(
@@ -149,7 +150,8 @@ class FinanceDB:
                         self.connection.commit()
                     else:
                         if self.logger is not None:
-                            self.logger.info("No options for {0}, expiration {1}".format(quote["ticker"], quote["expire_date"]))
+                            self.logger.info(
+                                "No options for {0}, expiration {1}".format(quote["ticker"], quote["expire_date"]))
                 # print("value added for time: ", quote["time"])
             except Exception as err:
                 if self.logger is not None:
@@ -215,14 +217,14 @@ class FinanceDB:
         df = pd.DataFrame(data=df_expirations, columns=df_column_values)
         return df
 
-    def get_all_options_for_expiration(self, option_expire_id: int, put_call :str=None)-> pd.DataFrame:
+    def get_all_options_for_expiration(self, option_expire_id: int, put_call: str = None) -> pd.DataFrame:
         cursor = self.connection.cursor()
         query = "SELECT * FROM put_call_options where option_expire_id = ?"
         args = [option_expire_id]
         if type is not None:
             query = query + " AND put_call = ?"
             args.append(put_call)
-        cursor.execute(query,args)
+        cursor.execute(query, args)
 
         rows = cursor.fetchall()
         np_rows = np.array(rows)
@@ -238,7 +240,7 @@ class FinanceDB:
         if type is not None:
             query = query + " AND put_call = ?"
             args.append(put_call)
-        cursor.execute(query,args)
+        cursor.execute(query, args)
 
         rows = cursor.fetchall()
         np_rows = np.array(rows)
@@ -249,7 +251,7 @@ class FinanceDB:
 
     def get_date_times_for_expiration_df(self, symbol: str, option_expire_id: int,
                                          start_date: datetime.datetime = None,
-                                         end_date: datetime.datetime = None,) -> pd.DataFrame:
+                                         end_date: datetime.datetime = None, ) -> pd.DataFrame:
         cursor = self.connection.cursor()
 
         query = "SELECT * FROM stock_price where symbol = ? AND option_expire_id = ?"
@@ -270,7 +272,7 @@ class FinanceDB:
             df = pd.DataFrame(data=df_data, columns=df_column_values)
             return df
         else:
-            return None
+            return pd.DataFrame()
 
     def get_unique_strikes_for_expiration(self, option_expire_id, put_call=None) -> pd.DataFrame:
         cursor = self.connection.cursor()
@@ -288,9 +290,9 @@ class FinanceDB:
         df = pd.DataFrame(data=df_data, columns=df_column_values)
         return df
 
-    def delete_options( self, symbol: str, option_expire_id: int) -> None:
+    def delete_options(self, symbol: str, option_expire_id: int) -> None:
         if option_expire_id != -1:
-            self._delete_option( option_expire_id )
+            self._delete_option(option_expire_id)
         else:
             cursor = self.connection.cursor()
             cursor.execute("SELECT option_expire_id FROM option_expire where symbol = ? ",
@@ -335,11 +337,11 @@ class FinanceDB:
 
     def get_expire_date_from_id(self, option_expire_id: int) -> datetime.datetime:
         cursor = self.connection.cursor()
-        cursor.execute( "SELECT expire_date FROM option_expire where option_expire_id = ?", (option_expire_id, ))
+        cursor.execute("SELECT expire_date FROM option_expire where option_expire_id = ?", (option_expire_id,))
         rows = cursor.fetchall()
         return rows[0][0]
 
-    def add_position(self, symbol: str, put_call:str, buy_sell: str, open_date: datetime.datetime,
+    def add_position(self, symbol: str, put_call: str, buy_sell: str, open_date: datetime.datetime,
                      option_price_open: float, strike_price: float, option_expire_id: int) -> None:
         cursor = self.connection.cursor()
         cursor.execute("INSERT INTO positions(symbol, put_call, buy_sell, open_date,"
@@ -348,11 +350,11 @@ class FinanceDB:
                         strike_price, option_expire_id])
         self.connection.commit()
 
-    def search_positions(self, option_expire_id: int, strike_price: float) ->\
+    def search_positions(self, option_expire_id: int, strike_price: float) -> \
             (datetime.datetime, float, datetime.datetime, float, float):
         cursor = self.connection.cursor()
-        cursor.execute( "SELECT * FROM positions where option_expire_id = ? and strike_price = ?",
-                        (option_expire_id, strike_price))
+        cursor.execute("SELECT * FROM positions where option_expire_id = ? and strike_price = ?",
+                       (option_expire_id, strike_price))
         rows = cursor.fetchall()
         if len(rows) > 0:
             return rows[0][4], rows[0][5], rows[0][6], rows[0][7], rows[0][8]
