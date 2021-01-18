@@ -10,6 +10,7 @@ from OptionsWatch import OptionsWatch
 from OptionsConfiguration import OptionsConfiguration
 import Utilities
 
+
 # noinspection SpellCheckingInspection
 def create_logger():
     # noinspection SpellCheckingInspection
@@ -40,9 +41,9 @@ def process_options():
     try:
         parser = argparse.ArgumentParser()
         parser.add_argument("-r", "--repeat", help="Continuous collection - Set by update rate", action="store_true")
-        parser.add_argument('-u', '--update', action='store', type=int, help= "Update rate in seconds")
-        parser.add_argument('-d', '--db', action='store', type=str, help= "Database to use")
-        parser.add_argument('-e', '--expire', action='store', type=str, help= "expiration (YYYY-MM-DD)")
+        parser.add_argument('-u', '--update', action='store', type=int, help="Update rate in seconds")
+        parser.add_argument('-d', '--db', action='store', type=str, help="Database to use")
+        parser.add_argument('-e', '--expire', action='store', type=str, help="expiration (YYYY-MM-DD)")
 
         args = parser.parse_args()
         repeat = args.repeat
@@ -83,20 +84,20 @@ def process_options():
                 if len(options) > 0:
                     for option in options:
                         logger.info("{0}(Before filter). Expires {1}. {2} Calls, {3} Puts".format(
-                              option["ticker"],
-                              option['expire_date'].strftime("%Y-%m-%d"),
-                              len(option["options_chain"]["calls"]),
-                              len(option["options_chain"]["puts"])))
+                            option["ticker"],
+                            option['expire_date'].strftime("%Y-%m-%d"),
+                            len(option["options_chain"]["calls"]),
+                            len(option["options_chain"]["puts"])))
                         if len(option["options_chain"]["puts"]) > 0 and len(option["options_chain"]["calls"]) > 0:
                             Utilities.filter_by_date(option, 10)
                             Utilities.filter_by_at_the_money(option, 30, 50)
                             Utilities.decimate_options(option, 50)
 
                             logger.info("{0}(After filter). Expires {1}. {2} Calls, {3} Puts".format(
-                                  option["ticker"],
-                                  option['expire_date'].strftime("%Y-%m-%d"),
-                                  len(option["options_chain"]["calls"]),
-                                  len(option["options_chain"]["puts"])))
+                                option["ticker"],
+                                option['expire_date'].strftime("%Y-%m-%d"),
+                                len(option["options_chain"]["calls"]),
+                                len(option["options_chain"]["puts"])))
 
                     options_db.add_option_quote(options)
         else:
@@ -106,7 +107,6 @@ def process_options():
             time.sleep(update_rate)
         else:
             repeat_get_quotes = False
-
 
 
 if __name__ == '__main__':

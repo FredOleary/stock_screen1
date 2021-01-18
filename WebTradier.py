@@ -2,10 +2,12 @@ import requests
 import Utilities
 import datetime
 import pandas as pd
+import warnings
 
 
 class WebTradier:
     def __init__(self, logger=None):
+        warnings.warn("Class has been deprecated - Use APIYahoo/APITradier", DeprecationWarning, 2)
         self.logger = logger
         self.authorization = 'Bearer FH98drEqHDafbIJDkGW71Ati3hRY'
         self.base_url = 'https://sandbox.tradier.com/v1/markets/'
