@@ -212,10 +212,13 @@ class FinanceDB:
         cursor.execute("SELECT * FROM option_expire where symbol = ?", [symbol])
         rows = cursor.fetchall()
         np_rows = np.array(rows)
-        df_expirations = np_rows[:, [0, 2]]  # expire date
-        df_column_values = ["option_expire_id", "expire_date"]
-        df = pd.DataFrame(data=df_expirations, columns=df_column_values)
-        return df
+        if len(np_rows) > 0:
+            df_expirations = np_rows[:, [0, 2]]  # expire date
+            df_column_values = ["option_expire_id", "expire_date"]
+            df = pd.DataFrame(data=df_expirations, columns=df_column_values)
+            return df
+        else:
+            return pd.DataFrame()
 
     def get_all_options_for_expiration(self, option_expire_id: int, put_call: str = None) -> pd.DataFrame:
         cursor = self.connection.cursor()
@@ -360,6 +363,17 @@ class FinanceDB:
             return rows[0][4], rows[0][5], rows[0][6], rows[0][7], rows[0][8]
         else:
             return None, None, None, None, None
+
+
+    def get_name_for_symbol(self, symbol: str) ->str:
+        result = ""
+        cursor = self.connection.cursor()
+        cursor.execute("SELECT name FROM stocks where symbol = ? ", (symbol, ))
+        rows = cursor.fetchall()
+        if len(rows) > 0:
+            result = rows[0][0]
+        return result
+
 
     def _create_verify_tables(self):
         # Get a list of all tables

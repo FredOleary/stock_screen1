@@ -132,7 +132,9 @@ class GuiOptions(tk.ttk.Frame):
                                             end_date=self.end_date,
                                             option_type='extrinsic' if self.bid_extrinsic_value.get() == 1 else 'bid')
             if success:
-                chart.line_chart_option(fig, self.symbol_var.get(), "Call", row["expire_date"])
+                chart.line_chart_option(fig, self.symbol_var.get(),
+                                        self.options_db.get_name_for_symbol(self.symbol_var.get()),
+                                        "Call", row["expire_date"])
                 self.show_figure(canvas)
                 self.status_var.set("Done")
             else:
@@ -160,7 +162,9 @@ class GuiOptions(tk.ttk.Frame):
                                             end_date=self.end_date,
                                             option_type='extrinsic' if self.bid_extrinsic_value.get() == 1 else 'bid')
             if success:
-                chart.surface_chart_option(fig, self.symbol_var.get(), "Call", row["expire_date"])
+                chart.surface_chart_option(fig, self.symbol_var.get(),
+                                           self.options_db.get_name_for_symbol(self.symbol_var.get()),
+                                           "Call", row["expire_date"])
                 self.show_figure(canvas)
                 self.status_var.set("Done")
             else:
@@ -183,6 +187,7 @@ class GuiOptions(tk.ttk.Frame):
             success = chart.create_strike_profit_chart(self.options_db,
                                                        fig,
                                                        self.symbol_var.get(),
+                                                       self.options_db.get_name_for_symbol(self.symbol_var.get()),
                                                        row["option_expire_id"],
                                                        strike,
                                                        row["expire_date"],
@@ -212,6 +217,7 @@ class GuiOptions(tk.ttk.Frame):
             success = chart.create_strike_metrics_chart(self.options_db,
                                                         fig,
                                                         self.symbol_var.get(),
+                                                        self.options_db.get_name_for_symbol(self.symbol_var.get()),
                                                         row["option_expire_id"],
                                                         strike,
                                                         row["expire_date"],

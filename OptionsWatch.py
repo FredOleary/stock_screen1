@@ -5,11 +5,13 @@ class OptionsWatch:
             {"symbol": "QQQ", "name": "Invesco QQQ"},
             {"symbol": "MAR", "name": "Marriot"},
             {"symbol": "TSLA", "name": "Tesla Motor"},
-            {"symbol": "T", "name": "AT&T"},
-            {"symbol": "VZ", "name": "Verizon"},
+            {"symbol": "NVDA", "name": "NVida Corporation"},
+            {"symbol": "LITE", "name": "Lumentum Corp"},
             {"symbol": "AMD", "name": "Advanced Micro Devices"},
             {"symbol": "BLNK", "name": "Blink charging"},
-            {"symbol": "PCG", "name": "PG&E corporation"}
+            {"symbol": "PCG", "name": "PG&E corporation"},
+            {"symbol": "CY", "name": "Cyprus Semiconductor"},
+            {"symbol": "SPWR", "name": "SunPower"}
 
         ]
 

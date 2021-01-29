@@ -46,6 +46,9 @@ class APITradier(APIOptions):
                                          'Accept': 'application/json'})
         if response.status_code == 200:
             json_response = response.json()
+            if type(json_response['expirations']['date']) == str:
+                # typically a list of dates, but sometimes a singular date
+                json_response['expirations']['date'] = [json_response['expirations']['date']]
             return json_response
         else:
             if self.logger is not None:

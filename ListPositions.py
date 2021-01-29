@@ -2,7 +2,7 @@ import tkinter as tki
 import pandastable as pt
 import pandas as pd
 import datetime
-
+import math
 
 class ListTable(pt.Table):
     def __init__(self, options_db, table_container, position_ids, **kwargs):
@@ -19,8 +19,11 @@ class ListTable(pt.Table):
             position_id = self.position_ids[row]
 
             if column == 'Closed':
-                date = datetime.datetime.strptime(value, '%Y-%m-%d')
-                self.options_db.update_positions_field(position_id, "close_date", date)
+                if math.isnan(value):
+                    self.options_db.update_positions_field(position_id, "close_date", math.nan)
+                else:
+                    date = datetime.datetime.strptime(value, '%Y-%m-%d')
+                    self.options_db.update_positions_field(position_id, "close_date", date)
             elif column == 'Close Price':
                 self.options_db.update_positions_field(position_id, "option_price_close", value)
             elif column == 'Open Price':

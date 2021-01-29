@@ -32,6 +32,7 @@ import Utilities as util
 
 from matplotlib.backends.backend_tkagg import (FigureCanvasTkAgg, NavigationToolbar2Tk)
 
+
 class ChartOptions:
     def __init__(self):
         self.line_min_readings_for_strike = 5  # Minimum no of readings for a strike for line to be drawn
@@ -63,7 +64,7 @@ class ChartOptions:
                 pass
         return result
 
-    def get_option_implied_volatility(self, option_row ) -> float:
+    def get_option_implied_volatility(self, option_row) -> float:
         result = math.nan
         implied_volatility = option_row["impliedVolatility"]
         if implied_volatility is not None:
@@ -71,7 +72,6 @@ class ChartOptions:
                 # Seems to get garbage when both put/ask are 0
                 result = implied_volatility
         return result
-
 
     def get_option_ask(self, option_row) -> float:
         ask_value = math.nan
@@ -126,7 +126,8 @@ class ChartOptions:
             return False
 
     # noinspection SpellCheckingInspection
-    def surface_chart_option(self, fig: Figure, symbol: str, put_call: str, expiration_date: datetime.datetime) -> None:
+    def surface_chart_option(self, fig: Figure, symbol: str, symbol_name:str, put_call: str,
+                             expiration_date: datetime.datetime) -> None:
 
         indicies = np.arange(len(self.x_dates))
 
@@ -144,9 +145,10 @@ class ChartOptions:
         mappable.set_clim(math.floor(min_value), math.ceil(max_value))
         fig.colorbar(mappable, shrink=0.9, aspect=5)
 
-        self.__add_x_axis_and_title(fig, ax, self.x_dates, expiration_date, put_call, symbol, True)
+        self.__add_x_axis_and_title(fig, ax, self.x_dates, expiration_date, put_call, symbol, symbol_name, True)
 
-    def line_chart_option(self, fig: Figure, symbol: str, put_call: str, expiration_date: datetime.datetime) -> None:
+    def line_chart_option(self, fig: Figure, symbol: str, symbol_name:str, put_call: str,
+                          expiration_date: datetime.datetime) -> None:
         indicies = np.arange(len(self.x_dates))
         strike_lines = []
         strike_dictionary = dict()
@@ -170,7 +172,8 @@ class ChartOptions:
             non_zeros = column[~np.isnan(column)]
             if len(non_zeros) >= self.line_min_readings_for_strike:
                 if i % decimation_factor == 0 or self.y_strikes[i] % 10 == 0:
-                    strike_line, = ax.plot(indicies, self.z_price[:, i], label="{0}".format(self.y_strikes[i]), picker=True)
+                    strike_line, = ax.plot(indicies, self.z_price[:, i], label="{0}".format(self.y_strikes[i]),
+                                           picker=True)
                     strike_lines.append(strike_line)
 
         legend = ax.legend(loc='upper left')
@@ -180,7 +183,7 @@ class ChartOptions:
             legend_line.set_picker(5)  # 5 pts tolerance
             strike_dictionary[legend_line] = orig_line
 
-        self.__add_x_axis_and_title(fig, ax, self.x_dates, expiration_date, put_call, symbol, False)
+        self.__add_x_axis_and_title(fig, ax, self.x_dates, expiration_date, put_call, symbol, symbol_name, False)
 
         def on_pick(event):
             # on the pick event, find the orig line corresponding to the
@@ -220,9 +223,11 @@ class ChartOptions:
         self.on_off_button = widgets.Button(ax_toggle, "Hide All Strikes")
         self.on_off_button.on_clicked(toggle_strikes)
 
-    def create_strike_profit_chart(self, options_db: FinanceDB, fig: Figure, symbol: str, options_for_expiration_key: int,
-                                   strike: float, expiration_date: datetime.datetime, put_call: str,
-                                   start_date: datetime.datetime = None, end_date: datetime.datetime = None,
+    def create_strike_profit_chart(self, options_db: FinanceDB, fig: Figure, symbol: str, symbol_name,
+                                   options_for_expiration_key: int, strike: float,
+                                   expiration_date: datetime.datetime,
+                                   put_call: str, start_date: datetime.datetime = None,
+                                   end_date: datetime.datetime = None,
                                    option_type: str = 'extrinsic') -> bool:
         def make_format(current, other, x_dates):
             # current and other are axes
@@ -313,7 +318,7 @@ class ChartOptions:
             legend = ax.legend(loc='upper left')
             legend.get_frame().set_alpha(0.4)
 
-            self.__add_x_axis_and_title(fig, ax, x_dates, expiration_date, put_call, symbol, False)
+            self.__add_x_axis_and_title(fig, ax, x_dates, expiration_date, put_call, symbol, symbol_name, False)
 
             ax2 = ax.twinx()
             ax2.set_ylabel("Stock price", color="black")
@@ -328,10 +333,10 @@ class ChartOptions:
         else:
             return False
 
-
-    def create_strike_metrics_chart(self, options_db: FinanceDB, fig: Figure, symbol: str, options_for_expiration_key: int,
-                                   strike: float, expiration_date: datetime.datetime, put_call: str,
-                                   start_date: datetime.datetime = None, end_date: datetime.datetime = None) -> bool:
+    def create_strike_metrics_chart(self, options_db: FinanceDB, fig: Figure, symbol: str, symbol_name: str,
+                                    options_for_expiration_key: int, strike: float, expiration_date: datetime.datetime,
+                                    put_call: str, start_date: datetime.datetime = None,
+                                    end_date: datetime.datetime = None) -> bool:
 
         def create_index_map(series):
             index_map = {}
@@ -341,11 +346,6 @@ class ChartOptions:
                     index_map[element] = idx
                     idx += 1
             return index_map
-
-        # def normalize_series(series):
-        #     no_nans = np.asarray(series[~np.isnan(series)])
-        #     norm = np.linalg.norm(no_nans)
-        #     return no_nans / norm
 
         df_dates_and_stock_price = options_db.get_date_times_for_expiration_df(
             symbol, options_for_expiration_key, start_date, end_date)
@@ -390,13 +390,13 @@ class ChartOptions:
             legend = ax.legend(loc='upper left')
             legend.get_frame().set_alpha(0.4)
 
-            self.__add_x_axis_and_title(fig, ax, x_dates, expiration_date, put_call, symbol, False)
+            self.__add_x_axis_and_title(fig, ax, x_dates, expiration_date, put_call, symbol, symbol_name, False)
 
             return True
         else:
             return False
 
-    def __add_x_axis_and_title(self, fig, ax, x_dates, expiration_date, put_call, symbol, has_zlabel):
+    def __add_x_axis_and_title(self, fig, ax, x_dates, expiration_date, put_call, symbol, symbol_name, has_zlabel):
         def format_date(x_in, pos=None):
             date_time_format = '%y-%m-%d'
             if num_days < 4:
@@ -428,6 +428,6 @@ class ChartOptions:
         current_price = "Current Price: N/A"
         if self.stock_price is not None and len(self.stock_price) > 0:
             current_price = "Current Price: {0}".format(self.stock_price[len(self.stock_price) - 1])
-        fig.suptitle("{0} chain for {1}, expires {2}. ({3}), {4}".
-                  format(put_call, symbol, expiration_date.strftime("%Y-%m-%d"),
-                         days_to_expiration, current_price))
+        fig.suptitle("{0} chain for {1}, ({2}), expires {3}. ({4}), {5}".
+                     format(put_call, symbol, symbol_name, expiration_date.strftime("%Y-%m-%d"),
+                            days_to_expiration, current_price))

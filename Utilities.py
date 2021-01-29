@@ -22,16 +22,19 @@ def normalize_series(series: np.ndarray) -> []:
 
 
 def is_third_friday(time_str: str, allow_yahoo_glitch=False) -> (bool, datetime):
-    d = datetime.datetime.strptime(time_str, '%Y-%m-%d')  # Eg "2020-10-08"
-    if allow_yahoo_glitch:
-        # Note - empirically we see that sometimes a thursday is returned, (rather than a Friday)
-        # No idea why however options expirations are Friday...
-        if d.weekday() == 3:
-            d = d + datetime.timedelta(days=1)
+    try:
+        d = datetime.datetime.strptime(time_str, '%Y-%m-%d')  # Eg "2020-10-08"
+        if allow_yahoo_glitch:
+            # Note - empirically we see that sometimes a thursday is returned, (rather than a Friday)
+            # No idea why however options expirations are Friday...
+            if d.weekday() == 3:
+                d = d + datetime.timedelta(days=1)
 
-    if d.weekday() == 4 and 15 <= d.day <= 21:
-        return True, d
-    return False, d
+        if d.weekday() == 4 and 15 <= d.day <= 21:
+            return True, d
+    except ValueError as err:
+        print(err)
+    return False, None
 
 
 def filter_by_date(option: {}, time_delta_in_days: int) -> {}:

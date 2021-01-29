@@ -13,7 +13,8 @@ class OptionsScreenerWatch:
             {"symbol": "QCOM", "name": "Qualcomm Inc"},
             {"symbol": "BLNK", "name": "Blink Charging Co"},
             {"symbol": "PCG", "name": "PG&E Co"},
-            {"symbol": "NVDA", "name": "NVIDIA"}
+            {"symbol": "NVDA", "name": "NVIDIA"},
+            {"symbol": "SPWR", "name": "SunPower"}
         ]
 
     def get_companies(self):
