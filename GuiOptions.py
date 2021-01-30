@@ -19,6 +19,7 @@ from ChartOptions import ChartOptions
 from matplotlib.backends.backend_tkagg import (FigureCanvasTkAgg, NavigationToolbar2Tk)
 from matplotlib.figure import Figure
 from dateutil import parser
+from Prediction import Prediction
 import argparse
 
 
@@ -184,6 +185,16 @@ class GuiOptions(tk.ttk.Frame):
             chart = ChartOptions()
             row = self.shadow_expiration[self.expiration_var.get()]
             strike = self.strike_var.get()
+            forecast = Prediction(self.options_db,
+                                  self.symbol_var.get(),
+                                  row["option_expire_id"],
+                                  row["expire_date"],
+                                  strike,
+                                  "CALL",
+                                  "bid" )
+            predictions = forecast.calculate_predictions()
+
+
             success = chart.create_strike_profit_chart(self.options_db,
                                                        fig,
                                                        self.symbol_var.get(),

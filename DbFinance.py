@@ -336,7 +336,6 @@ class FinanceDB:
         sql_query = "UPDATE positions SET {0} = ? WHERE position_id = ?".format(column_name)
         cursor.execute(sql_query, (value, position_id))
         self.connection.commit()
-        pass
 
     def get_expire_date_from_id(self, option_expire_id: int) -> datetime.datetime:
         cursor = self.connection.cursor()
@@ -364,16 +363,31 @@ class FinanceDB:
         else:
             return None, None, None, None, None
 
-
-    def get_name_for_symbol(self, symbol: str) ->str:
+    def get_name_for_symbol(self, symbol: str) -> str:
         result = ""
         cursor = self.connection.cursor()
-        cursor.execute("SELECT name FROM stocks where symbol = ? ", (symbol, ))
+        cursor.execute("SELECT name FROM stocks where symbol = ? ", (symbol,))
         rows = cursor.fetchall()
         if len(rows) > 0:
             result = rows[0][0]
         return result
 
+    def get_strike_data_for_expiration(self, expire_id: int, strike: float, put_call: str) -> pd.DataFrame:
+        cursor = self.connection.cursor()
+        cursor.execute("SELECT * FROM put_call_options LEFT JOIN stock_price "
+                       "ON put_call_options.stock_price_id = stock_price.stock_price_id "
+                       "where put_call_options.option_expire_id = ? "
+                       "and put_call_options.strike = ?"
+                       "and put_call_options.put_call = ?",
+                       (expire_id, strike, put_call))
+        rows = np.array(cursor.fetchall())
+        if len(rows) > 0:
+            df_data = rows[:, [17, 2, 5, 6, 7, 11]]
+            df = pd.DataFrame(data=df_data, columns=["time", "put_call", "lastPrice",
+                                                     "bid", "ask", "impliedVolatility"])
+            return df
+
+        return pd.DataFrame()
 
     def _create_verify_tables(self):
         # Get a list of all tables
