@@ -19,7 +19,7 @@ TEST_DATA_SIZE = 24
 
 TRAIN_WINDOW = 24
 
-FUTURE_COUNT = 24
+FUTURE_COUNT = 48
 
 class Prediction:
     def __init__(self,
@@ -30,7 +30,8 @@ class Prediction:
                  strike: float,
                  put_call: str,
                  metric: str,
-                 logger=None):
+                 training_event,
+                 logger=None,):
         self.symbol = symbol
         self.db = db
         self.expiration_key = expiration_key
@@ -39,16 +40,18 @@ class Prediction:
         self.metric = metric
         self.logger = logger
         self.train_data_normalized = None
+        self.expiration = expiration
         self.scaler = None
+        self.training_event = training_event
 
     def calculate_predictions(self):
         df = self.__load_series_from_db()
         day_list = self.__process_to_days(df)
         day_ndarray = self.__process_day_list(day_list)
-        train_data_normalized, test_data = self.__train_data(day_ndarray, TEST_DATA_SIZE)
+        train_data_normalized = self.__train_data(day_ndarray, TEST_DATA_SIZE)
         self.__train_or_load_model(train_data_normalized)
-        predictions = self.__create_predictions(FUTURE_COUNT)
-        return predictions
+        last_day_predictions, next_day_predictions = self.__create_predictions(FUTURE_COUNT)
+        return last_day_predictions, next_day_predictions
 
     def __load_series_from_db(self) -> pd.DataFrame:
         df = self.db.get_strike_data_for_expiration( self.expiration_key, self.strike, self.put_call)
@@ -70,8 +73,8 @@ class Prediction:
                    i +=1
                else:
                    break
-        for day in result:
-            print(len(day))
+        # for day in result:
+        #     print(len(day))
         return result
 
     def __process_day_list(self, day_list :list) -> np.ndarray:
@@ -89,11 +92,11 @@ class Prediction:
 
     def __train_data(self, day_ndarray: np.ndarray, test_data_size) -> (np.ndarray, np.ndarray):
         train_data = day_ndarray[:-test_data_size]
-        test_data = day_ndarray[-test_data_size:]
+        # test_data = day_ndarray[-test_data_size:]
 
         self.scaler = MinMaxScaler(feature_range=(-1, 1))
         train_data_normalized = self.scaler.fit_transform(train_data.reshape(-1, 1))
-        return train_data_normalized, test_data
+        return train_data_normalized
 
     def __train_or_load_model(self, td_normalized: np.ndarray):
 
@@ -102,11 +105,14 @@ class Prediction:
         train_inout_seq = self.__create_inout_sequences(self.train_data_normalized, TRAIN_WINDOW)
 
         self.model = ForecastLSTM()
+        saved_trained_model = f"{self.symbol}-{self.strike}-{self.expiration.strftime('%Y-%m-%d')}.pt"
 
-        my_file = Path("foo_bar.pt")
+        my_file = Path(saved_trained_model)
         if my_file.is_file():
-            self.model.load_state_dict(torch.load("foo_bar.pt"))
+            self.model.load_state_dict(torch.load(saved_trained_model))
         else:
+            print(f"Beginning training")
+            self.training_event(f"Beginning training")
             loss_function = nn.MSELoss()
             optimizer = torch.optim.Adam(self.model.parameters(), lr=0.001)
             epochs = 150
@@ -122,11 +128,13 @@ class Prediction:
                     single_loss = loss_function(y_pred, labels)
                     single_loss.backward()
                     optimizer.step()
+                self.training_event(f"epoch {i}")
+                if i % 5 == 1:
+                    print(f'Epoch: {i:3} loss: {single_loss.item():10.8f}')
 
-                if i % 25 == 1:
-                    print(f'epoch: {i:3} loss: {single_loss.item():10.8f}')
-
-            torch.save(self.model.state_dict(), "foo_bar.pt")
+            print(f"Training complete")
+            self.training_event(f"Training complete")
+            torch.save(self.model.state_dict(), saved_trained_model)
         self.test_inputs = self.train_data_normalized[-TRAIN_WINDOW:].tolist()
         self.model.eval()
 
@@ -147,5 +155,7 @@ class Prediction:
                                 torch.zeros(1, 1, self.model.hidden_layer_size))
                 self.test_inputs.append(self.model(seq).item())
 
-        actual_predictions = self.scaler.inverse_transform(np.array(self.test_inputs[TRAIN_WINDOW:]).reshape(-1, 1))
-        return actual_predictions
+        actual_predictions = self.scaler.inverse_transform(np.array(self.test_inputs[TEST_DATA_SIZE:]).reshape(-1, 1))
+        last_day_predictions = actual_predictions[:TEST_DATA_SIZE]
+        next_day_predictions = actual_predictions[TEST_DATA_SIZE:]
+        return last_day_predictions, next_day_predictions

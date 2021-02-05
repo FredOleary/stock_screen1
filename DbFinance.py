@@ -87,6 +87,9 @@ class FinanceDB:
                          stock_price_open REAL,
                          stock_price_close REAL,
                          option_expire_id INTEGER,
+                         status TEXT,
+                         option_profit REAL,
+                         stock_profit REAL,
                          UNIQUE( symbol, open_date, option_expire_id),
                          CONSTRAINT fk_option_expire
                             FOREIGN KEY (option_expire_id)
@@ -317,12 +320,12 @@ class FinanceDB:
         cursor.execute(cmd)
         rows = np.array(cursor.fetchall())
         if len(rows) > 0:
-            df_data = rows[:, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]]  # stock_price_id, strike and bid
+            df_data = rows[:, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]]  # stock_price_id, strike and bid
             df = pd.DataFrame(data=df_data, columns=["position_id", "symbol", "put_call", "buy_sell",
                                                      "open_date", "option_price_open",
                                                      "close_date", "option_price_close",
                                                      "strike_price", "stock_price_open", "stock_price_close",
-                                                     "option_expire_id"])
+                                                     "option_expire_id", "status"])
             return df
         return pd.DataFrame()
 
@@ -347,9 +350,9 @@ class FinanceDB:
                      option_price_open: float, strike_price: float, option_expire_id: int) -> None:
         cursor = self.connection.cursor()
         cursor.execute("INSERT INTO positions(symbol, put_call, buy_sell, open_date,"
-                       "option_price_open, strike_price, option_expire_id) VALUES (?,?,?,?,?,?,?)",
+                       "option_price_open, strike_price, option_expire_id, status) VALUES (?,?,?,?,?,?,?,?)",
                        [symbol, put_call, buy_sell, open_date, option_price_open,
-                        strike_price, option_expire_id])
+                        strike_price, option_expire_id, "OPEN"])
         self.connection.commit()
 
     def search_positions(self, option_expire_id: int, strike_price: float) -> \

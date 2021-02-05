@@ -74,10 +74,10 @@ class GuiOptions(tk.ttk.Frame):
 
     def get_symbols(self):
         df_symbols = self.options_db.get_all_symbols()
-        symbol_set = set()
+        symbol_set = []
         for i_row, symbol_row in df_symbols.iterrows():
-            symbol_set.add(symbol_row["symbol"])
-
+            symbol_set.append(symbol_row["symbol"])
+        symbol_set = sorted(symbol_set)
         self.update_symbols(symbol_set)
 
     # noinspection PyUnusedLocal
@@ -178,6 +178,11 @@ class GuiOptions(tk.ttk.Frame):
         self.update()
         self.update_idletasks()
 
+        def training_event(message):
+            self.status_var.set(message)
+            self.update()
+            self.update_idletasks()
+
         if bool(self.shadow_expiration) and self.strike_var.get() != "":
             self.clear_plot_frame()
             fig = Figure(figsize=(10, 6))
@@ -191,9 +196,9 @@ class GuiOptions(tk.ttk.Frame):
                                   row["expire_date"],
                                   strike,
                                   "CALL",
-                                  "bid" )
-            predictions = forecast.calculate_predictions()
-
+                                  "bid",
+                                  training_event)
+            last_day_predictions, next_day_predictions = forecast.calculate_predictions()
 
             success = chart.create_strike_profit_chart(self.options_db,
                                                        fig,
@@ -202,6 +207,7 @@ class GuiOptions(tk.ttk.Frame):
                                                        row["option_expire_id"],
                                                        strike,
                                                        row["expire_date"],
+                                                       last_day_predictions, next_day_predictions,
                                                        put_call="CALL",
                                                        start_date=self.start_date,
                                                        end_date=self.end_date,
