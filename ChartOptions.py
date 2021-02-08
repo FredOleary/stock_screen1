@@ -145,7 +145,9 @@ class ChartOptions:
         mappable.set_clim(math.floor(min_value), math.ceil(max_value))
         fig.colorbar(mappable, shrink=0.9, aspect=5)
 
-        self.__add_x_axis_and_title(fig, ax, self.x_dates, expiration_date, put_call, symbol, symbol_name, True)
+        self.__add_x_axis_and_title(fig, ax, self.x_dates, expiration_date, put_call,
+                                    symbol, symbol_name, True,
+                                    'Extrinsic value' if self.option_type == 'extrinsic' else 'Bid value')
 
     def line_chart_option(self, fig: Figure, symbol: str, symbol_name:str, put_call: str,
                           expiration_date: datetime.datetime) -> None:
@@ -183,7 +185,9 @@ class ChartOptions:
             legend_line.set_picker(5)  # 5 pts tolerance
             strike_dictionary[legend_line] = orig_line
 
-        self.__add_x_axis_and_title(fig, ax, self.x_dates, expiration_date, put_call, symbol, symbol_name, False)
+        self.__add_x_axis_and_title(fig, ax, self.x_dates, expiration_date, put_call,
+                                    symbol, symbol_name, False,
+                                    'Extrinsic value' if self.option_type == 'extrinsic' else 'Bid value')
 
         def on_pick(event):
             # on the pick event, find the orig line corresponding to the
@@ -222,116 +226,6 @@ class ChartOptions:
         ax_toggle = fig.add_axes([0.01, 0.9, 0.15, 0.075])
         self.on_off_button = widgets.Button(ax_toggle, "Hide All Strikes")
         self.on_off_button.on_clicked(toggle_strikes)
-
-    # def create_strike_profit_chart(self, options_db: FinanceDB, fig: Figure, symbol: str, symbol_name,
-    #                                options_for_expiration_key: int, strike: float,
-    #                                expiration_date: datetime.datetime,
-    #                                put_call: str, start_date: datetime.datetime = None,
-    #                                end_date: datetime.datetime = None,
-    #                                option_type: str = 'extrinsic') -> bool:
-    #     def make_format(current, other, x_dates):
-    #         # current and other are axes
-    #         def format_coord(x, y):
-    #             # x, y are data coordinates
-    #             # convert to display coords
-    #             display_coord = current.transData.transform((x, y))
-    #             inv = other.transData.inverted()
-    #             # convert back to data coords with respect to ax
-    #             ax_coord = inv.transform(display_coord)
-    #             index = int(round(x))
-    #             if 0 <= index < len(x_dates):
-    #                 date_time_format = '%y-%m-%d'
-    #                 x_date = x_dates[index]
-    #                 x_date_str = util.convert_panda_time_to_time_zone(x_date, date_time_format, 'US/Pacific')
-    #                 return "Date/Time: {}, option price: {:.2f}, stock price: {:.2f}".format(x_date_str, ax_coord[1], y)
-    #             else:
-    #                 return ""
-    #
-    #         return format_coord
-    #
-    #     def create_index_map(series):
-    #         index_map = {}
-    #         idx = 0
-    #         for element in series:
-    #             if element not in index_map.keys():
-    #                 index_map[element] = idx
-    #                 idx += 1
-    #         return index_map
-    #
-    #     self.option_type = option_type
-    #     df_dates_and_stock_price = options_db.get_date_times_for_expiration_df(
-    #         symbol, options_for_expiration_key, start_date, end_date)
-    #     if not df_dates_and_stock_price.empty:
-    #         # Check if there is a position for this option
-    #         open_date, option_price_open, close_date, option_price_close, position_strike_price = \
-    #             options_db.search_positions(options_for_expiration_key, strike)
-    #         x_dates = df_dates_and_stock_price["datetime"].to_numpy()
-    #         stock_price_ids = df_dates_and_stock_price["stock_price_id"].to_numpy()
-    #         self.stock_price = df_dates_and_stock_price["price"].to_numpy()
-    #         strikes_for_expiration = options_db.get_strikes_for_expiration(options_for_expiration_key,
-    #                                                                        strike,
-    #                                                                        put_call=put_call)
-    #         y_strikes_bid = np.empty(x_dates.size)
-    #         y_strikes_ask = np.empty(x_dates.size)
-    #         y_strikes_extrinsic = np.empty(x_dates.size)
-    #         if open_date is not None:
-    #             y_strikes_profit = np.empty(x_dates.size)
-    #             y_strikes_profit.fill(math.nan)
-    #
-    #         y_strikes_bid.fill(math.nan)
-    #         y_strikes_ask.fill(math.nan)
-    #         y_strikes_extrinsic.fill(math.nan)
-    #         stock_price_id_map = create_index_map(stock_price_ids)
-    #
-    #         for index, row in strikes_for_expiration.iterrows():
-    #             if row["stock_price_id"] in stock_price_id_map:
-    #                 # Bid value
-    #                 value = self.get_option_value(row, put_call, 'bid')
-    #                 y_strikes_bid[stock_price_id_map[row["stock_price_id"]]] = value
-    #                 y_strikes_ask[stock_price_id_map[row["stock_price_id"]]] = self.get_option_ask(row)
-    #
-    #                 # extrinsic value
-    #                 value = self.get_option_value(row, put_call, 'extrinsic')
-    #                 y_strikes_extrinsic[stock_price_id_map[row["stock_price_id"]]] = value
-    #                 # calculate profit if we have a position
-    #                 # (Note... only implemented for selling calls)
-    #                 if open_date is not None:
-    #                     date = pd.to_datetime(x_dates[stock_price_id_map[row["stock_price_id"]]])
-    #                     if date > open_date:
-    #                         ask_value = self.get_option_ask(row)
-    #                         y_strikes_profit[stock_price_id_map[row["stock_price_id"]]] = \
-    #                             option_price_open - ask_value
-    #
-    #         indicies = np.arange(len(x_dates))
-    #
-    #         ax = fig.add_subplot(111)
-    #         ax.plot(indicies, y_strikes_bid, label="Bid, (var = {0})".format(
-    #             util.calculate_variance(y_strikes_bid)))
-    #         ax.plot(indicies, y_strikes_ask, label="Ask, (var = {0})".format(
-    #             util.calculate_variance(y_strikes_ask)))
-    #         ax.plot(indicies, y_strikes_extrinsic, label="Extrinsic, (var = {0})".format(
-    #             util.calculate_variance(y_strikes_extrinsic)))
-    #         if open_date is not None:
-    #             ax.plot(indicies, y_strikes_profit, label="Profit, (var = {0})".format(
-    #                 util.calculate_variance(y_strikes_profit)))
-    #
-    #         legend = ax.legend(loc='upper left')
-    #         legend.get_frame().set_alpha(0.4)
-    #
-    #         self.__add_x_axis_and_title(fig, ax, x_dates, expiration_date, put_call, symbol, symbol_name, False)
-    #
-    #         ax2 = ax.twinx()
-    #         ax2.set_ylabel("Stock price", color="black")
-    #         ax2.plot(indicies, self.stock_price, color="black", label="Stock Price, (var = {0})".format(
-    #             util.calculate_variance(self.stock_price)))
-    #
-    #         legend2 = ax2.legend(loc='upper right')
-    #
-    #         ax2.format_coord = make_format(ax2, ax, x_dates)
-    #
-    #         return True
-    #     else:
-    #         return False
 
     def create_strike_profit_chart(self, options_db: FinanceDB, fig: Figure, symbol: str, symbol_name,
                                    options_for_expiration_key: int, strike: float,
@@ -438,7 +332,8 @@ class ChartOptions:
             legend = ax.legend(loc='upper left')
             legend.get_frame().set_alpha(0.4)
 
-            self.__add_x_axis_and_title(fig, ax, x_dates, expiration_date, put_call, symbol, symbol_name, False)
+            self.__add_x_axis_and_title(fig, ax, x_dates, expiration_date, put_call,
+                                        symbol, symbol_name, False, "Value")
 
             ax2 = ax.twinx()
             ax2.set_ylabel("Stock price", color="black")
@@ -510,13 +405,74 @@ class ChartOptions:
             legend = ax.legend(loc='upper left')
             legend.get_frame().set_alpha(0.4)
 
-            self.__add_x_axis_and_title(fig, ax, x_dates, expiration_date, put_call, symbol, symbol_name, False)
+            self.__add_x_axis_and_title(fig, ax, x_dates, expiration_date, put_call,
+                                        symbol, symbol_name, False, "Normalized Value")
 
             return True
         else:
             return False
 
-    def __add_x_axis_and_title(self, fig, ax, x_dates, expiration_date, put_call, symbol, symbol_name, has_zlabel):
+    def create_strike_bid_ask(self, options_db: FinanceDB,
+                              fig: Figure,
+                              symbol: str,
+                              symbol_name: str,
+                              options_for_expiration_key: int,
+                              strike: float,
+                              expiration_date: datetime.datetime,
+                              put_call: str,
+                              start_date: datetime.datetime = None,
+                              end_date: datetime.datetime = None) -> bool:
+
+        def create_index_map(series):
+            index_map = {}
+            idx = 0
+            for element in series:
+                if element not in index_map.keys():
+                    index_map[element] = idx
+                    idx += 1
+            return index_map
+
+        df_dates_and_stock_price = options_db.get_date_times_for_expiration_df(
+            symbol, options_for_expiration_key, start_date, end_date)
+        if not df_dates_and_stock_price.empty:
+            x_dates = df_dates_and_stock_price["datetime"].to_numpy()
+            stock_price_ids = df_dates_and_stock_price["stock_price_id"].to_numpy()
+            self.stock_price = df_dates_and_stock_price["price"].to_numpy()
+            strikes_for_expiration = options_db.get_strikes_for_expiration(options_for_expiration_key,
+                                                                           strike,
+                                                                           put_call=put_call)
+            y_strikes_bid = np.empty(x_dates.size)
+            y_strikes_ask = np.empty(x_dates.size)
+            y_strikes_last= np.empty(x_dates.size)
+
+            y_strikes_bid.fill(math.nan)
+            y_strikes_ask.fill(math.nan)
+            y_strikes_last.fill(math.nan)
+            stock_price_id_map = create_index_map(stock_price_ids)
+
+            for index, row in strikes_for_expiration.iterrows():
+                if row["stock_price_id"] in stock_price_id_map:
+                    y_strikes_bid[stock_price_id_map[row["stock_price_id"]]] = row["bid"]
+                    y_strikes_ask[stock_price_id_map[row["stock_price_id"]]] = row["ask"]
+                    y_strikes_last[stock_price_id_map[row["stock_price_id"]]] = row["lastPrice"]
+
+            indicies = np.arange(len(x_dates))
+
+            ax = fig.add_subplot(111)
+            ax.plot(indicies, y_strikes_bid, label="Bid".format(strike))
+            ax.plot(indicies, y_strikes_ask, label="Ask".format(strike))
+            ax.plot(indicies, y_strikes_last, label="Last Price".format(strike))
+
+            legend = ax.legend(loc='upper left')
+            legend.get_frame().set_alpha(0.4)
+
+            self.__add_x_axis_and_title(fig, ax, x_dates, expiration_date, put_call, symbol, symbol_name, False, "Value" )
+
+            return True
+        else:
+            return False
+
+    def __add_x_axis_and_title(self, fig, ax, x_dates, expiration_date, put_call, symbol, symbol_name, has_zlabel, y_label):
         def format_date(x_in, pos=None):
             date_time_format = '%y-%m-%d'
             if num_days < 4:
@@ -533,10 +489,10 @@ class ChartOptions:
         ax.set_xlabel('Date/Time (PST)')
 
         if has_zlabel:
-            ax.set_zlabel('Extrinsic value' if self.option_type == 'extrinsic' else 'Bid value')
+            ax.set_zlabel(y_label)
             ax.set_ylabel('Strike Price')
         else:
-            ax.set_ylabel('Extrinsic value' if self.option_type == 'extrinsic' else 'Bid value')
+            ax.set_ylabel(y_label)
 
         days_to_expire = expiration_date - datetime.datetime.now()
         delta_days = days_to_expire.days

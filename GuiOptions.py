@@ -248,6 +248,36 @@ class GuiOptions(tk.ttk.Frame):
             else:
                 self.status_var.set("No data available")
 
+    def create_bid_ask_chart(self, event=None):
+        self.close_button.focus_force()
+        self.status_var.set("Creating bid/ask chart...")
+        self.update()
+        self.update_idletasks()
+
+        if bool(self.shadow_expiration) and self.strike_var.get() != "":
+            self.clear_plot_frame()
+            fig = Figure(figsize=(10, 6))
+            canvas = FigureCanvasTkAgg(fig, master=self.plot_frame)
+            chart = ChartOptions()
+            row = self.shadow_expiration[self.expiration_var.get()]
+            strike = self.strike_var.get()
+            success = chart.create_strike_bid_ask(self.options_db,
+                                                        fig,
+                                                        self.symbol_var.get(),
+                                                        self.options_db.get_name_for_symbol(self.symbol_var.get()),
+                                                        row["option_expire_id"],
+                                                        strike,
+                                                        row["expire_date"],
+                                                        put_call="CALL",
+                                                        start_date=self.start_date,
+                                                        end_date=self.end_date)
+
+            if success:
+                self.show_figure(canvas)
+                self.status_var.set("Done")
+            else:
+                self.status_var.set("No data available")
+
     def show_figure(self, canvas):
         canvas.draw()
         canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
@@ -357,8 +387,8 @@ class GuiOptions(tk.ttk.Frame):
             self.chart_menu.entryconfig("Surface", state="disabled")
             self.chart_menu.entryconfig("Line", state="disabled")
             self.chart_menu.entryconfig("Strike/Profit", state="disabled")
-            self.chart_menu.entryconfig("Strike/Metrics", state="disabled")
-
+            self.chart_menu.entryconfig("Normalized Strike/Metrics", state="disabled")
+            self.chart_menu.entryconfig("Strike Bid/Ask/Last", state="normal")
         else:
             # self.surface_chart_button.config(state='normal')
             # self.line_chart_button.config(state='normal')
@@ -369,11 +399,14 @@ class GuiOptions(tk.ttk.Frame):
             if not self.strike_var.get():
                 # self.strike_chart_button.config(state='disabled')
                 self.chart_menu.entryconfig("Strike/Profit", state="disabled")
-                self.chart_menu.entryconfig("Strike/Metrics", state="disabled")
+                self.chart_menu.entryconfig("Normalized Strike/Metrics", state="disabled")
+                self.chart_menu.entryconfig("Strike Bid/Ask/Last", state="normal")
             else:
                 # self.strike_chart_button.config(state='normal')
                 self.chart_menu.entryconfig("Strike/Profit", state="normal")
-                self.chart_menu.entryconfig("Strike/Metrics", state="normal")
+                self.chart_menu.entryconfig("Normalized Strike/Metrics", state="normal")
+                self.chart_menu.entryconfig("Strike Bid/Ask/Last", state="normal")
+
         if not self.symbol_var.get():
             self.delete_option_button.config(state='disabled')
         else:
@@ -576,7 +609,8 @@ class GuiOptions(tk.ttk.Frame):
         self.chart_menu.add_command(label="Surface", command=self.create_surface_chart)
         self.chart_menu.add_command(label="Line", command=self.create_line_chart)
         self.chart_menu.add_command(label="Strike/Profit", command=self.create_strike_profit_chart)
-        self.chart_menu.add_command(label="Strike/Metrics", command=self.create_strike_metrics_chart)
+        self.chart_menu.add_command(label="Normalized Strike/Metrics", command=self.create_strike_metrics_chart)
+        self.chart_menu.add_command(label="Strike Bid/Ask/Last", command=self.create_bid_ask_chart)
         # self.chart_menu.add_command(label="Strike/Profit", command=self.add_position)
         self.menu_bar.add_cascade(label="Charts", menu=self.chart_menu)
 
