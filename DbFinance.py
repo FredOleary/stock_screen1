@@ -87,6 +87,9 @@ class FinanceDB:
                          stock_price_open REAL,
                          stock_price_close REAL,
                          option_expire_id INTEGER,
+                         status TEXT,
+                         option_profit REAL,
+                         stock_profit REAL,
                          UNIQUE( symbol, open_date, option_expire_id),
                          CONSTRAINT fk_option_expire
                             FOREIGN KEY (option_expire_id)
@@ -317,12 +320,12 @@ class FinanceDB:
         cursor.execute(cmd)
         rows = np.array(cursor.fetchall())
         if len(rows) > 0:
-            df_data = rows[:, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]]  # stock_price_id, strike and bid
+            df_data = rows[:, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]]  # stock_price_id, strike and bid
             df = pd.DataFrame(data=df_data, columns=["position_id", "symbol", "put_call", "buy_sell",
                                                      "open_date", "option_price_open",
                                                      "close_date", "option_price_close",
                                                      "strike_price", "stock_price_open", "stock_price_close",
-                                                     "option_expire_id"])
+                                                     "option_expire_id", "status"])
             return df
         return pd.DataFrame()
 
@@ -336,7 +339,6 @@ class FinanceDB:
         sql_query = "UPDATE positions SET {0} = ? WHERE position_id = ?".format(column_name)
         cursor.execute(sql_query, (value, position_id))
         self.connection.commit()
-        pass
 
     def get_expire_date_from_id(self, option_expire_id: int) -> datetime.datetime:
         cursor = self.connection.cursor()
@@ -348,9 +350,9 @@ class FinanceDB:
                      option_price_open: float, strike_price: float, option_expire_id: int) -> None:
         cursor = self.connection.cursor()
         cursor.execute("INSERT INTO positions(symbol, put_call, buy_sell, open_date,"
-                       "option_price_open, strike_price, option_expire_id) VALUES (?,?,?,?,?,?,?)",
+                       "option_price_open, strike_price, option_expire_id, status) VALUES (?,?,?,?,?,?,?,?)",
                        [symbol, put_call, buy_sell, open_date, option_price_open,
-                        strike_price, option_expire_id])
+                        strike_price, option_expire_id, "OPEN"])
         self.connection.commit()
 
     def search_positions(self, option_expire_id: int, strike_price: float) -> \
@@ -364,16 +366,31 @@ class FinanceDB:
         else:
             return None, None, None, None, None
 
-
-    def get_name_for_symbol(self, symbol: str) ->str:
+    def get_name_for_symbol(self, symbol: str) -> str:
         result = ""
         cursor = self.connection.cursor()
-        cursor.execute("SELECT name FROM stocks where symbol = ? ", (symbol, ))
+        cursor.execute("SELECT name FROM stocks where symbol = ? ", (symbol,))
         rows = cursor.fetchall()
         if len(rows) > 0:
             result = rows[0][0]
         return result
 
+    def get_strike_data_for_expiration(self, expire_id: int, strike: float, put_call: str) -> pd.DataFrame:
+        cursor = self.connection.cursor()
+        cursor.execute("SELECT * FROM put_call_options LEFT JOIN stock_price "
+                       "ON put_call_options.stock_price_id = stock_price.stock_price_id "
+                       "where put_call_options.option_expire_id = ? "
+                       "and put_call_options.strike = ?"
+                       "and put_call_options.put_call = ?",
+                       (expire_id, strike, put_call))
+        rows = np.array(cursor.fetchall())
+        if len(rows) > 0:
+            df_data = rows[:, [17, 2, 5, 6, 7, 11]]
+            df = pd.DataFrame(data=df_data, columns=["time", "put_call", "lastPrice",
+                                                     "bid", "ask", "impliedVolatility"])
+            return df
+
+        return pd.DataFrame()
 
     def _create_verify_tables(self):
         # Get a list of all tables
