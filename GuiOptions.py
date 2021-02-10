@@ -171,6 +171,37 @@ class GuiOptions(tk.ttk.Frame):
             else:
                 self.status_var.set("No data available")
 
+    def create_current_bid_ask_chart(self, event=None):
+        self.close_button.focus_force()
+        self.status_var.set("Creating Bid/Ask...")
+        self.update()
+        self.update_idletasks()
+
+        if bool(self.shadow_expiration):
+            success = False
+            self.clear_plot_frame()
+            fig = Figure(figsize=(10, 6))
+            canvas = FigureCanvasTkAgg(fig, master=self.plot_frame)
+            chart = ChartOptions()
+            row = self.shadow_expiration[self.expiration_var.get()]
+            web = Utilities.get_options_API()
+            expire_date = self.options_db.get_expire_date_from_id(row["option_expire_id"]).strftime('%Y-%m-%d')
+            option = web.get_options_for_symbol_and_expiration(self.symbol_var.get(), expire_date, put_call="CALL")
+            if bool(option):
+                success = chart.create_bid_ask_bar_chart(fig,
+                                                         self.symbol_var.get(),
+                                                         self.options_db.get_name_for_symbol(self.symbol_var.get()),
+                                                         row["expire_date"],
+                                                         option["current_value"],
+                                                         option["options_chain"]["calls"],
+                                                         put_call="CALL")
+
+            if success:
+                self.show_figure(canvas)
+                self.status_var.set("Done")
+            else:
+                self.status_var.set("No data available")
+
     # noinspection PyUnusedLocal
     def create_strike_profit_chart(self, event=None):
         self.close_button.focus_force()
@@ -262,15 +293,15 @@ class GuiOptions(tk.ttk.Frame):
             row = self.shadow_expiration[self.expiration_var.get()]
             strike = self.strike_var.get()
             success = chart.create_strike_bid_ask(self.options_db,
-                                                        fig,
-                                                        self.symbol_var.get(),
-                                                        self.options_db.get_name_for_symbol(self.symbol_var.get()),
-                                                        row["option_expire_id"],
-                                                        strike,
-                                                        row["expire_date"],
-                                                        put_call="CALL",
-                                                        start_date=self.start_date,
-                                                        end_date=self.end_date)
+                                                  fig,
+                                                  self.symbol_var.get(),
+                                                  self.options_db.get_name_for_symbol(self.symbol_var.get()),
+                                                  row["option_expire_id"],
+                                                  strike,
+                                                  row["expire_date"],
+                                                  put_call="CALL",
+                                                  start_date=self.start_date,
+                                                  end_date=self.end_date)
 
             if success:
                 self.show_figure(canvas)
@@ -386,21 +417,23 @@ class GuiOptions(tk.ttk.Frame):
             self.positions_menu.entryconfig("Add", state="disabled")
             self.chart_menu.entryconfig("Surface", state="disabled")
             self.chart_menu.entryconfig("Line", state="disabled")
+            self.chart_menu.entryconfig("Current bid/ask", state="disabled")
             self.chart_menu.entryconfig("Strike/Profit", state="disabled")
             self.chart_menu.entryconfig("Normalized Strike/Metrics", state="disabled")
-            self.chart_menu.entryconfig("Strike Bid/Ask/Last", state="normal")
+            self.chart_menu.entryconfig("Strike Bid/Ask/Last", state="disabled")
         else:
             # self.surface_chart_button.config(state='normal')
             # self.line_chart_button.config(state='normal')
             self.positions_menu.entryconfig("Add", state="normal")
             self.chart_menu.entryconfig("Surface", state="normal")
             self.chart_menu.entryconfig("Line", state="normal")
+            self.chart_menu.entryconfig("Current bid/ask", state="normal")
 
             if not self.strike_var.get():
                 # self.strike_chart_button.config(state='disabled')
                 self.chart_menu.entryconfig("Strike/Profit", state="disabled")
                 self.chart_menu.entryconfig("Normalized Strike/Metrics", state="disabled")
-                self.chart_menu.entryconfig("Strike Bid/Ask/Last", state="normal")
+                self.chart_menu.entryconfig("Strike Bid/Ask/Last", state="disabled")
             else:
                 # self.strike_chart_button.config(state='normal')
                 self.chart_menu.entryconfig("Strike/Profit", state="normal")
@@ -608,6 +641,7 @@ class GuiOptions(tk.ttk.Frame):
         self.chart_menu = tk.Menu(self.menu_bar, tearoff=0)
         self.chart_menu.add_command(label="Surface", command=self.create_surface_chart)
         self.chart_menu.add_command(label="Line", command=self.create_line_chart)
+        self.chart_menu.add_command(label="Current bid/ask", command=self.create_current_bid_ask_chart)
         self.chart_menu.add_command(label="Strike/Profit", command=self.create_strike_profit_chart)
         self.chart_menu.add_command(label="Normalized Strike/Metrics", command=self.create_strike_metrics_chart)
         self.chart_menu.add_command(label="Strike Bid/Ask/Last", command=self.create_bid_ask_chart)

@@ -60,25 +60,48 @@ class ListPositions(object):
         pd_list = pd.DataFrame()
         open_date = []
         close_date = []
-        pd_list.insert(0, "Ticker", position_info["positions"]["symbol"])
-        pd_list.insert(1, "Status", position_info["positions"]["status"])
-        pd_list.insert(2, "Put/Call", position_info["positions"]["put_call"])
-        pd_list.insert(3, "Buy/Sell", position_info["positions"]["buy_sell"])
+        option_profit =[]
+        position = 0
+        pd_list.insert(position, "Ticker", position_info["positions"]["symbol"])
+        position += 1
+        pd_list.insert(position, "Status", position_info["positions"]["status"])
+        position += 1
+        pd_list.insert(position, "Put/Call", position_info["positions"]["put_call"])
+        position += 1
+        pd_list.insert(position, "Buy/Sell", position_info["positions"]["buy_sell"])
+        position += 1
         for index, row in position_info["positions"].iterrows():
             open_date.append(row["open_date"].strftime('%Y-%m-%d'))
             close_date.append(None if row["close_date"] is None or row["close_date"] is pd.NaT
                               else row["close_date"].strftime('%Y-%m-%d'))
 
-        pd_list.insert(4, "Opened", open_date)
-        pd_list.insert(5, "Open Price", position_info["positions"]["option_price_open"])
-        pd_list.insert(6, "Closed", close_date)
-        pd_list.insert(7, "Close Price", position_info["positions"]["option_price_close"])
-        pd_list.insert(8, "Current Price", position_info["positions"]["current_option_price"])
-        pd_list.insert(9, "Strike Price", position_info["positions"]["strike_price"])
-        pd_list.insert(10, "Stock Price(Open)", position_info["positions"]["stock_price_open"])
-        pd_list.insert(11, "Stock Price(Current)", position_info["positions"]["current_stock_price"])
-        pd_list.insert(12, "Stock Price(Close)", position_info["positions"]["stock_price_close"])
-        pd_list.insert(13, "Expiration", position_info["positions"]["expire_date_str"])
+        pd_list.insert(position, "Opened", open_date)
+        position += 1
+        pd_list.insert(position, "Open Price", position_info["positions"]["option_price_open"])
+        position += 1
+        pd_list.insert(position, "Closed", close_date)
+        position += 1
+        pd_list.insert(position, "Close Price", position_info["positions"]["option_price_close"])
+        position += 1
+
+        for index, row in position_info["positions"].iterrows():
+            if row["status"].upper() == "CLOSED" or row["status"].upper() == "EXPIRED":
+                option_profit.append(row["option_price_open"] - row["option_price_close"])
+            else:
+                option_profit.append(None)
+        pd_list.insert(position, "Option Profit", option_profit)
+        position += 1
+        pd_list.insert(position, "Current Price", position_info["positions"]["current_option_price"])
+        position += 1
+        pd_list.insert(position, "Strike Price", position_info["positions"]["strike_price"])
+        position += 1
+        pd_list.insert(position, "Stock Price(Open)", position_info["positions"]["stock_price_open"])
+        position += 1
+        pd_list.insert(position, "Stock Price(Current)", position_info["positions"]["current_stock_price"])
+        position += 1
+        pd_list.insert(position, "Stock Price(Close)", position_info["positions"]["stock_price_close"])
+        position += 1
+        pd_list.insert(position, "Expiration", position_info["positions"]["expire_date_str"])
 
         self.table = ListTable(self.options_db, table_container, position_info["positions"]["position_id"],
                                dataframe=pd_list,

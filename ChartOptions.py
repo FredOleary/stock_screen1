@@ -412,7 +412,8 @@ class ChartOptions:
         else:
             return False
 
-    def create_strike_bid_ask(self, options_db: FinanceDB,
+    def create_strike_bid_ask(self,
+                              options_db: FinanceDB,
                               fig: Figure,
                               symbol: str,
                               symbol_name: str,
@@ -471,6 +472,60 @@ class ChartOptions:
             return True
         else:
             return False
+
+    def create_bid_ask_bar_chart(self,
+                                 fig: Figure,
+                                 symbol: str,
+                                 symbol_name: str,
+                                 expiration_date: datetime.datetime,
+                                 current_price: float,
+                                 strike_options: pd.DataFrame,
+                                 put_call: str=None) -> bool:
+
+        ax = fig.add_subplot(111)
+        OTM_strikes = strike_options.loc[strike_options['inTheMoney'] == False]
+        strike_prices = OTM_strikes["strike"]
+        bid_prices = OTM_strikes["bid"]
+        ask_prices = OTM_strikes["ask"]
+
+        x = np.arange(len(OTM_strikes))  # the label locations
+        width = 0.35  # the width of the bars
+
+        rects1 = ax.bar(x - width / 2, bid_prices, width, label='Bid')
+        rects2 = ax.bar(x + width / 2, ask_prices, width, label='Ask')
+
+        ax.set_ylabel('Price')
+        ax.set_xlabel('Strike Prices')
+        ax.set_xticks(x)
+        ax.set_xticklabels(strike_prices)
+        ax.legend()
+        days_to_expire = expiration_date - datetime.datetime.now()
+        delta_days = days_to_expire.days
+        if delta_days > 0:
+            days_to_expiration = "{0} days to expiration".format(delta_days)
+        else:
+            days_to_expiration = "Expired"
+
+        fig.suptitle(f"Bid/Asks for {symbol}, ({symbol_name}), expires {expiration_date.strftime('%Y-%m-%d')}"
+                     f" ({days_to_expiration})")
+
+        def autolabel(rects):
+            """Attach a text label above each bar in *rects*, displaying its value."""
+            for rect in rects:
+                height = rect.get_height()
+                ax.annotate('{}'.format(height),
+                            xy=(rect.get_x() + rect.get_width() / 2, height),
+                            xytext=(0, 3),  # 3 points vertical offset
+                            textcoords="offset points",
+                            ha='center', va='bottom')
+
+        autolabel(rects1)
+        autolabel(rects2)
+
+        return True
+
+
+
 
     def __add_x_axis_and_title(self, fig, ax, x_dates, expiration_date, put_call, symbol, symbol_name, has_zlabel, y_label):
         def format_date(x_in, pos=None):
