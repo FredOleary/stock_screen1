@@ -506,8 +506,8 @@ class ChartOptions:
         else:
             days_to_expiration = "Expired"
 
-        fig.suptitle(f"Bid/Asks for {symbol}, ({symbol_name}), expires {expiration_date.strftime('%Y-%m-%d')}"
-                     f" ({days_to_expiration})")
+        fig.suptitle(f"Bid/Ask for {symbol}, ({symbol_name}), expires {expiration_date.strftime('%Y-%m-%d')}"
+                     f" ({days_to_expiration}), Current Price: {current_price}")
 
         def autolabel(rects):
             """Attach a text label above each bar in *rects*, displaying its value."""

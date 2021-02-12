@@ -10,7 +10,6 @@ class OptionsWatch:
             {"symbol": "AMD", "name": "Advanced Micro Devices"},
             {"symbol": "BLNK", "name": "Blink charging"},
             {"symbol": "PCG", "name": "PG&E corporation"},
-            {"symbol": "CY", "name": "Cyprus Semiconductor"},
             {"symbol": "SPWR", "name": "SunPower"}
 
         ]

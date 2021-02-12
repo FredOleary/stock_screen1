@@ -301,11 +301,11 @@ class FinanceDB:
             self._delete_option(option_expire_id)
         else:
             cursor = self.connection.cursor()
-            cursor.execute("SELECT option_expire_id FROM option_expire where symbol = ? ",
-                           [symbol])
+            cursor.execute("SELECT option_expire_id FROM option_expire where symbol = ? ",[symbol])
             rows = cursor.fetchall()
             for row in rows:
                 self._delete_option(row[0])
+            cursor.execute("DELETE FROM stocks where symbol = ?", (symbol,))
 
     def _delete_option(self, expire_id):
         cursor = self.connection.cursor()

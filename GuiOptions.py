@@ -187,7 +187,8 @@ class GuiOptions(tk.ttk.Frame):
             web = Utilities.get_options_API()
             expire_date = self.options_db.get_expire_date_from_id(row["option_expire_id"]).strftime('%Y-%m-%d')
             option = web.get_options_for_symbol_and_expiration(self.symbol_var.get(), expire_date, put_call="CALL")
-            if bool(option):
+            success = False
+            if bool(option) and type(option["options_chain"]["calls"]) == pd.DataFrame:
                 success = chart.create_bid_ask_bar_chart(fig,
                                                          self.symbol_var.get(),
                                                          self.options_db.get_name_for_symbol(self.symbol_var.get()),

@@ -7,6 +7,7 @@ import torch.nn as nn
 
 from ForecastLSTM import ForecastLSTM
 from pathlib import Path
+
 """
 SAMPLES_PER_DAY:
 With a sample period of about 15 min and 6.5 hrs in a trading period, that translates to
@@ -21,6 +22,7 @@ TRAIN_WINDOW = 24
 
 FUTURE_COUNT = 48
 
+
 class Prediction:
     def __init__(self,
                  db: FinanceDB,
@@ -31,7 +33,7 @@ class Prediction:
                  put_call: str,
                  metric: str,
                  training_event,
-                 logger=None,):
+                 logger=None, ):
         self.symbol = symbol
         self.db = db
         self.expiration_key = expiration_key
@@ -54,7 +56,7 @@ class Prediction:
         return last_day_predictions, next_day_predictions
 
     def __load_series_from_db(self) -> pd.DataFrame:
-        df = self.db.get_strike_data_for_expiration( self.expiration_key, self.strike, self.put_call)
+        df = self.db.get_strike_data_for_expiration(self.expiration_key, self.strike, self.put_call)
         return df
 
     def __process_to_days(self, df: pd.DataFrame) -> list:
@@ -65,19 +67,19 @@ class Prediction:
             day = df.iloc[i]["time"].day
             day_list = [df.iloc[i][self.metric]]
             result.append(day_list)
-            i = i+1
+            i = i + 1
             while i < len(df):
-               next_day = (df.iloc[i])["time"].day
-               if next_day == day:
-                   day_list.append(df.iloc[i][self.metric])
-                   i +=1
-               else:
-                   break
+                next_day = (df.iloc[i])["time"].day
+                if next_day == day:
+                    day_list.append(df.iloc[i][self.metric])
+                    i += 1
+                else:
+                    break
         # for day in result:
         #     print(len(day))
         return result
 
-    def __process_day_list(self, day_list :list) -> np.ndarray:
+    def __process_day_list(self, day_list: list) -> np.ndarray:
         """
         process the samples to have the same number of samples in each day
         with a sample period of about 15 min and 6.5 hrs in a trading period, that translates to
@@ -121,7 +123,7 @@ class Prediction:
                 for seq, labels in train_inout_seq:
                     optimizer.zero_grad()
                     self.model.hidden_cell = (torch.zeros(1, 1, self.model.hidden_layer_size),
-                                         torch.zeros(1, 1, self.model.hidden_layer_size))
+                                              torch.zeros(1, 1, self.model.hidden_layer_size))
 
                     y_pred = self.model(seq)
 
@@ -141,10 +143,10 @@ class Prediction:
     def __create_inout_sequences(self, input_data, tw):
         inout_seq = []
         L = len(input_data)
-        for i in range(L-tw):
-            train_seq = input_data[i:i+tw]
-            train_label = input_data[i+tw:i+tw+1]
-            inout_seq.append((train_seq ,train_label))
+        for i in range(L - tw):
+            train_seq = input_data[i:i + tw]
+            train_label = input_data[i + tw:i + tw + 1]
+            inout_seq.append((train_seq, train_label))
         return inout_seq
 
     def __create_predictions(self, prediction_count: int):
@@ -152,7 +154,7 @@ class Prediction:
             seq = torch.FloatTensor(self.test_inputs[-TRAIN_WINDOW:])
             with torch.no_grad():
                 self.model.hidden = (torch.zeros(1, 1, self.model.hidden_layer_size),
-                                torch.zeros(1, 1, self.model.hidden_layer_size))
+                                     torch.zeros(1, 1, self.model.hidden_layer_size))
                 self.test_inputs.append(self.model(seq).item())
 
         actual_predictions = self.scaler.inverse_transform(np.array(self.test_inputs[TEST_DATA_SIZE:]).reshape(-1, 1))

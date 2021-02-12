@@ -87,6 +87,8 @@ class ListPositions(object):
         for index, row in position_info["positions"].iterrows():
             if row["status"].upper() == "CLOSED" or row["status"].upper() == "EXPIRED":
                 option_profit.append(row["option_price_open"] - row["option_price_close"])
+            elif row["status"].upper() == "OPEN":
+                option_profit.append(row["option_price_open"] - row["current_option_price"])
             else:
                 option_profit.append(None)
         pd_list.insert(position, "Option Profit", option_profit)

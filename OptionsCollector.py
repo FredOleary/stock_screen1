@@ -44,6 +44,8 @@ def process_options():
         parser.add_argument('-u', '--update', action='store', type=int, help="Update rate in seconds")
         parser.add_argument('-d', '--db', action='store', type=str, help="Database to use")
         parser.add_argument('-e', '--expire', action='store', type=str, help="expiration (YYYY-MM-DD)")
+        parser.add_argument('-s', '--symbol', action='store', type=str, help="symbol (APPL")
+        parser.add_argument('-f', '--force', help="symbol force reading", action="store_true")
 
         args = parser.parse_args()
         repeat = args.repeat
@@ -51,7 +53,9 @@ def process_options():
             update_rate = args.update
         if args.db is not None:
             database = args.db
+        symbol = args.symbol
         expiration = args.expire
+        force_reading = args.force
 
     except Exception as err:
         print(err)
@@ -74,13 +78,17 @@ def process_options():
             (configuration.get_configuration())['collector_end_time_pst'], 'US/Pacific')
         now = datetime.datetime.now()
 
-        if start_time.time() <= now.time() <= end_time.time():
-            for company in companies.get_companies():
+        if (start_time.time() <= now.time() <= end_time.time()) or force_reading is not None:
+            if symbol is not None:
+                symbols = [{"symbol":symbol}]
+            else:
+                symbols = companies.get_companies()
+            for _symbol in symbols:
                 if expiration is not None:
-                    options = [web.get_options_for_symbol_and_expiration(company["symbol"], expiration)]
+                    options = [web.get_options_for_symbol_and_expiration(_symbol["symbol"], expiration)]
 
                 else:
-                    options = web.get_options_for_symbol(company["symbol"], look_a_heads=look_a_heads)
+                    options = web.get_options_for_symbol(_symbol["symbol"], look_a_heads=look_a_heads)
                 if len(options) > 0:
                     for option in options:
                         logger.info("{0}(Before filter). Expires {1}. {2} Calls, {3} Puts".format(
