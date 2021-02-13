@@ -61,6 +61,10 @@ class FinanceDB:
                             volume REAL,
                             openInterest INTEGER,
                             impliedVolatility REAL NOT NULL,
+                            delta REAL,
+                            gamma REAL,
+                            theta REAL,
+                            vega REAL,
                             inTheMoney TEXT NOT NULL,
                             option_expire_id INTEGER,
                             current_value REAL NOT NULL,
@@ -171,9 +175,9 @@ class FinanceDB:
             try:
                 cursor.execute("INSERT INTO put_call_options("
                                "stock_price_id, put_call, lastTradeDate, strike, lastPrice, bid, ask, "
-                               "change, volume, openInterest, impliedVolatility, inTheMoney, "
+                               "change, volume, openInterest, impliedVolatility, delta, gamma, theta, vega, inTheMoney, "
                                "option_expire_id, current_value) "
-                               "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                               "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                                (
                                    rowid,
                                    put_call,
@@ -186,6 +190,10 @@ class FinanceDB:
                                    option["volume"],
                                    option["openInterest"],
                                    option["impliedVolatility"],
+                                   option["delta"],
+                                   option["gamma"],
+                                   option["theta"],
+                                   option["vega"],
                                    ("FALSE", "TRUE")[option["inTheMoney"]],
                                    option_expire_id,
                                    current_value
@@ -234,7 +242,7 @@ class FinanceDB:
 
         rows = cursor.fetchall()
         np_rows = np.array(rows)
-        df_data = np_rows[:, [1, 4, 5, 6, 7, 14]]  # stock_price_id, strike and bid
+        df_data = np_rows[:, [1, 4, 5, 6, 7, 18]]  # stock_price_id, strike and bid
         df = pd.DataFrame(data=df_data, columns=["stock_price_id", "strike", "lastPrice",
                                                  "bid", "ask", "current_value"])
         return df
@@ -250,7 +258,7 @@ class FinanceDB:
 
         rows = cursor.fetchall()
         np_rows = np.array(rows)
-        df_data = np_rows[:, [1, 4, 5, 6, 7, 11, 14]]
+        df_data = np_rows[:, [1, 4, 5, 6, 7, 11, 18]]
         df = pd.DataFrame(data=df_data, columns=["stock_price_id", "strike", "lastPrice",
                                                  "bid", "ask", "impliedVolatility", "current_value"])
         return df
@@ -385,7 +393,7 @@ class FinanceDB:
                        (expire_id, strike, put_call))
         rows = np.array(cursor.fetchall())
         if len(rows) > 0:
-            df_data = rows[:, [17, 2, 5, 6, 7, 11]]
+            df_data = rows[:, [21, 2, 5, 6, 7, 18]]
             df = pd.DataFrame(data=df_data, columns=["time", "put_call", "lastPrice",
                                                      "bid", "ask", "impliedVolatility"])
             return df

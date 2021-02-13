@@ -137,7 +137,7 @@ class APITradier(APIOptions):
         if option_chain['options'] is not None:
             option_dict = {'contractsSymbol': [], 'lastTradeDate': [], 'strike': [], 'lastPrice': [],
                            'bid': [], 'ask': [], 'change': [], 'volume': [], 'openInterest': [],
-                           'impliedVolatility': [], 'delta': [], 'theta': [], 'inTheMoney': []}
+                           'impliedVolatility': [], 'delta': [],  'gamma': [], 'theta': [], 'vega': [], 'inTheMoney': []}
             for option in option_chain['options']['option']:
                 if option['option_type'].lower() == put_call.lower():
                     if option['trade_date'] > 0:
@@ -157,11 +157,15 @@ class APITradier(APIOptions):
                         if 'greeks' in option:
                             option_dict['impliedVolatility'].append(option['greeks']['mid_iv'])
                             option_dict['delta'].append(option['greeks']['delta'])
+                            option_dict['gamma'].append(option['greeks']['gamma'])
                             option_dict['theta'].append(option['greeks']['theta'])
+                            option_dict['vega'].append(option['greeks']['vega'])
                         else:
                             option_dict['impliedVolatility'].append(None)
                             option_dict['delta'].append(None)
+                            option_dict['gamma'].append(None)
                             option_dict['theta'].append(None)
+                            option_dict['vega'].append(None)
                         in_the_money = True
                         if put_call == 'CALL':
                             if option['strike'] > current_value:
