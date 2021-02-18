@@ -245,7 +245,7 @@ class ChartOptions:
                 ax_coord = inv.transform(display_coord)
                 index = int(round(x))
                 if 0 <= index < len(x_dates):
-                    date_time_format = '%y-%m-%d'
+                    date_time_format = '%y-%m-%d:%H:%M'
                     x_date = x_dates[index]
                     x_date_str = util.convert_panda_time_to_time_zone(x_date, date_time_format, 'US/Pacific')
                     return "Date/Time: {}, option price: {:.2f}, stock price: {:.2f}".format(x_date_str, ax_coord[1], y)
@@ -276,25 +276,26 @@ class ChartOptions:
             strikes_for_expiration = options_db.get_strikes_for_expiration(options_for_expiration_key,
                                                                            strike,
                                                                            put_call=put_call)
-            y_strikes_bid = np.empty(x_dates.size)
-            y_strikes_ask = np.empty(x_dates.size)
-            y_strikes_extrinsic = np.empty(x_dates.size)
+            y_strikes_bid = np.full(x_dates.size, math.nan)
+            y_strikes_ask = np.full(x_dates.size, math.nan)
+            y_strikes_extrinsic = np.full(x_dates.size, math.nan)
             if open_date is not None:
-                y_strikes_profit = np.empty(x_dates.size)
-                y_strikes_profit.fill(math.nan)
+                y_strikes_profit = np.full(x_dates.size, math.nan)
 
-            y_strikes_bid.fill(math.nan)
-            y_strikes_ask.fill(math.nan)
-            y_strikes_extrinsic.fill(math.nan)
+            y_strikes_delta = np.full(x_dates.size, math.nan)
+            y_strikes_theta = np.full(x_dates.size, math.nan)
             stock_price_id_map = create_index_map(stock_price_ids)
 
             for index, row in strikes_for_expiration.iterrows():
                 if row["stock_price_id"] in stock_price_id_map:
                     # Bid value
-                    value = self.get_option_value(row, put_call, 'bid')
-                    y_strikes_bid[stock_price_id_map[row["stock_price_id"]]] = value
+                    y_strikes_bid[stock_price_id_map[row["stock_price_id"]]] = \
+                        self.get_option_value(row, put_call, 'bid')
                     y_strikes_ask[stock_price_id_map[row["stock_price_id"]]] = self.get_option_ask(row)
-
+                    if row["delta"] is not None:
+                        y_strikes_delta[stock_price_id_map[row["stock_price_id"]]] = row["delta"]
+                    if row["theta"] is not None:
+                        y_strikes_theta[stock_price_id_map[row["stock_price_id"]]] = abs(row["theta"])
                     # extrinsic value
                     value = self.get_option_value(row, put_call, 'extrinsic')
                     y_strikes_extrinsic[stock_price_id_map[row["stock_price_id"]]] = value
@@ -319,6 +320,10 @@ class ChartOptions:
             if open_date is not None:
                 ax.plot(indicies, y_strikes_profit, label="Profit, (var = {0})".format(
                     util.calculate_variance(y_strikes_profit)))
+            ax.plot(indicies, y_strikes_delta, label="Delta, (var = {0})".format(
+                util.calculate_variance(y_strikes_delta)))
+            ax.plot(indicies, y_strikes_theta, label="Theta (Abs), (var = {0})".format(
+                util.calculate_variance(y_strikes_theta)))
 
             if last_day_predictions is not None:
                 pred_indicies = np.arange(len(indicies)-len(last_day_predictions), len(indicies))
@@ -500,7 +505,7 @@ class ChartOptions:
         ax.set_xticklabels(strike_prices)
         ax.legend()
         days_to_expire = expiration_date - datetime.datetime.now()
-        delta_days = days_to_expire.days
+        delta_days = days_to_expire.days + 1
         if delta_days > 0:
             days_to_expiration = "{0} days to expiration".format(delta_days)
         else:
@@ -550,7 +555,7 @@ class ChartOptions:
             ax.set_ylabel(y_label)
 
         days_to_expire = expiration_date - datetime.datetime.now()
-        delta_days = days_to_expire.days
+        delta_days = days_to_expire.days + 1
         if delta_days > 0:
             days_to_expiration = "{0} days to expiration".format(delta_days)
         else:

@@ -261,7 +261,7 @@ class CallScreenerOptions(tk.ttk.Frame):
                         round(display_chain['options_chain']['calls'].iloc[best_index]['impliedVolatility'] * 100, 2)
                     now = datetime.datetime.now()
                     expiration = datetime.datetime.strptime(self.expiration_var.get(), '%Y-%m-%d')
-                    delta = (expiration - now).days
+                    delta = (expiration - now).days +1
                     annual_roi = 365 / delta * roi_percent
                     self.data_frame.loc[company, 'Annual ROI(%)'] = round(annual_roi, 2)
                     if 'delta' in display_chain['options_chain']['calls'].columns:

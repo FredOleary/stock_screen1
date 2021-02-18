@@ -19,8 +19,9 @@ class ListTable(pt.Table):
             position_id = self.position_ids[row]
 
             if column == 'Closed':
-                if math.isnan(value):
-                    self.options_db.update_positions_field(position_id, "close_date", math.nan)
+                if type(value) is float:
+                    if math.isnan(value):
+                        self.options_db.update_positions_field(position_id, "close_date", math.nan)
                 else:
                     date = datetime.datetime.strptime(value, '%Y-%m-%d')
                     self.options_db.update_positions_field(position_id, "close_date", date)

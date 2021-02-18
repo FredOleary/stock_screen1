@@ -155,6 +155,7 @@ class FinanceDB:
                                                  quote["current_value"])
 
                         self.connection.commit()
+                        cursor.close()
                     else:
                         if self.logger is not None:
                             self.logger.info(
@@ -216,6 +217,7 @@ class FinanceDB:
         np_rows = np.array(rows)
         df_symbols = np_rows[:, 0]  # symbols
         df = pd.DataFrame(data=df_symbols, columns=["symbol"])
+        cursor.close()
         return df
 
     def get_all_options_expirations(self, symbol: str) -> pd.DataFrame:
@@ -223,6 +225,7 @@ class FinanceDB:
         cursor.execute("SELECT * FROM option_expire where symbol = ?", [symbol])
         rows = cursor.fetchall()
         np_rows = np.array(rows)
+        cursor.close()
         if len(np_rows) > 0:
             df_expirations = np_rows[:, [0, 2]]  # expire date
             df_column_values = ["option_expire_id", "expire_date"]
@@ -245,6 +248,7 @@ class FinanceDB:
         df_data = np_rows[:, [1, 4, 5, 6, 7, 18]]  # stock_price_id, strike and bid
         df = pd.DataFrame(data=df_data, columns=["stock_price_id", "strike", "lastPrice",
                                                  "bid", "ask", "current_value"])
+        cursor.close()
         return df
 
     def get_strikes_for_expiration(self, option_expire_id: int, strike: float, put_call: str = None) -> pd.DataFrame:
@@ -258,9 +262,11 @@ class FinanceDB:
 
         rows = cursor.fetchall()
         np_rows = np.array(rows)
-        df_data = np_rows[:, [1, 4, 5, 6, 7, 11, 18]]
+        df_data = np_rows[:, [1, 4, 5, 6, 7, 11, 12, 14, 18]]
         df = pd.DataFrame(data=df_data, columns=["stock_price_id", "strike", "lastPrice",
-                                                 "bid", "ask", "impliedVolatility", "current_value"])
+                                                 "bid", "ask", "impliedVolatility",
+                                                 "delta", "theta", "current_value"])
+        cursor.close()
         return df
 
     def get_date_times_for_expiration_df(self, symbol: str, option_expire_id: int,
@@ -280,6 +286,7 @@ class FinanceDB:
         cursor.execute(query, args)
         rows = cursor.fetchall()
         np_rows = np.array(rows)
+        cursor.close()
         if len(np_rows) > 0:
             df_data = np_rows[:, [0, 2, 3]]  # stock_price_id, DateTime and stock price
             df_column_values = ["stock_price_id", "datetime", "price"]
@@ -302,6 +309,7 @@ class FinanceDB:
         df_data = np_rows[:, 0]  # strike
         df_column_values = ["strike"]
         df = pd.DataFrame(data=df_data, columns=df_column_values)
+        cursor.close()
         return df
 
     def delete_options(self, symbol: str, option_expire_id: int) -> None:
@@ -314,6 +322,7 @@ class FinanceDB:
             for row in rows:
                 self._delete_option(row[0])
             cursor.execute("DELETE FROM stocks where symbol = ?", (symbol,))
+            cursor.close()
 
     def _delete_option(self, expire_id):
         cursor = self.connection.cursor()
@@ -321,12 +330,14 @@ class FinanceDB:
         cursor.execute("DELETE FROM option_expire where option_expire_id = ? ", (expire_id,))
         cursor.execute("DELETE FROM stock_price where option_expire_id = ? ", (expire_id,))
         self.connection.commit()
+        cursor.close()
 
     def get_positions(self) -> pd.DataFrame:
         cursor = self.connection.cursor()
         cmd = "SELECT * FROM positions"
         cursor.execute(cmd)
         rows = np.array(cursor.fetchall())
+        cursor.close()
         if len(rows) > 0:
             df_data = rows[:, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]]  # stock_price_id, strike and bid
             df = pd.DataFrame(data=df_data, columns=["position_id", "symbol", "put_call", "buy_sell",
@@ -341,17 +352,20 @@ class FinanceDB:
         cursor = self.connection.cursor()
         cursor.execute("DELETE FROM positions where position_id = ? ", (position_id,))
         self.connection.commit()
+        cursor.close()
 
     def update_positions_field(self, position_id, column_name, value) -> None:
         cursor = self.connection.cursor()
         sql_query = "UPDATE positions SET {0} = ? WHERE position_id = ?".format(column_name)
         cursor.execute(sql_query, (value, position_id))
         self.connection.commit()
+        cursor.close()
 
     def get_expire_date_from_id(self, option_expire_id: int) -> datetime.datetime:
         cursor = self.connection.cursor()
         cursor.execute("SELECT expire_date FROM option_expire where option_expire_id = ?", (option_expire_id,))
         rows = cursor.fetchall()
+        cursor.close()
         return rows[0][0]
 
     def add_position(self, symbol: str, put_call: str, buy_sell: str, open_date: datetime.datetime,
@@ -362,6 +376,7 @@ class FinanceDB:
                        [symbol, put_call, buy_sell, open_date, option_price_open,
                         strike_price, option_expire_id, "OPEN"])
         self.connection.commit()
+        cursor.close()
 
     def search_positions(self, option_expire_id: int, strike_price: float) -> \
             (datetime.datetime, float, datetime.datetime, float, float):
@@ -369,6 +384,7 @@ class FinanceDB:
         cursor.execute("SELECT * FROM positions where option_expire_id = ? and strike_price = ?",
                        (option_expire_id, strike_price))
         rows = cursor.fetchall()
+        cursor.close()
         if len(rows) > 0:
             return rows[0][4], rows[0][5], rows[0][6], rows[0][7], rows[0][8]
         else:
@@ -381,6 +397,7 @@ class FinanceDB:
         rows = cursor.fetchall()
         if len(rows) > 0:
             result = rows[0][0]
+        cursor.close()
         return result
 
     def get_strike_data_for_expiration(self, expire_id: int, strike: float, put_call: str) -> pd.DataFrame:
@@ -392,6 +409,7 @@ class FinanceDB:
                        "and put_call_options.put_call = ?",
                        (expire_id, strike, put_call))
         rows = np.array(cursor.fetchall())
+        cursor.close()
         if len(rows) > 0:
             df_data = rows[:, [21, 2, 5, 6, 7, 18]]
             df = pd.DataFrame(data=df_data, columns=["time", "put_call", "lastPrice",
@@ -410,6 +428,7 @@ class FinanceDB:
             if not table['name'] in names:
                 cursor.execute(table['create_sql'])
                 # table doesn't exist, create it
+        cursor.close()
 
     def _create_verify_stock_data(self):
         for stock in self.stock_data:
@@ -420,4 +439,5 @@ class FinanceDB:
                 cursor.execute("INSERT INTO stocks(symbol, name) VALUES (?,?)",
                                [stock["symbol"], stock["name"]])
                 self.connection.commit()
+            cursor.close()
         return
