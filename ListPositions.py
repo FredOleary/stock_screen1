@@ -39,6 +39,8 @@ class ListTable(pt.Table):
             elif column == 'Status':
                 value = value.upper()
                 self.options_db.update_positions_field(position_id, "status", value)
+            elif column == 'Contracts':
+                self.options_db.update_positions_field(position_id, "contracts", value)
             else:
                 print('changed:', row, column, "Unhandled")
 
@@ -67,9 +69,10 @@ class ListPositions(object):
         position += 1
         pd_list.insert(position, "Status", position_info["positions"]["status"])
         position += 1
-        pd_list.insert(position, "Put/Call", position_info["positions"]["put_call"])
-        position += 1
-        pd_list.insert(position, "Buy/Sell", position_info["positions"]["buy_sell"])
+        pd_list.insert(position, "Trade", position_info["positions"]["buy_sell"] + " - " +
+                       position_info["positions"]["put_call"])
+        # position += 1
+        # pd_list.insert(position, "Buy/Sell", position_info["positions"]["buy_sell"])
         position += 1
         for index, row in position_info["positions"].iterrows():
             open_date.append(row["open_date"].strftime('%Y-%m-%d'))
@@ -77,6 +80,8 @@ class ListPositions(object):
                               else row["close_date"].strftime('%Y-%m-%d'))
 
         pd_list.insert(position, "Opened", open_date)
+        position += 1
+        pd_list.insert(position, "Contracts", position_info["positions"]["contracts"])
         position += 1
         pd_list.insert(position, "Open Price", position_info["positions"]["option_price_open"])
         position += 1
@@ -86,12 +91,21 @@ class ListPositions(object):
         position += 1
 
         for index, row in position_info["positions"].iterrows():
-            if row["status"].upper() == "CLOSED" or row["status"].upper() == "EXPIRED":
+            if row["status"].upper() == "ASSIGNED":
+                option_profit.append(row["option_price_open"])
+            elif row["status"].upper() == "CLOSED" or row["status"].upper() == "EXPIRED":
                 option_profit.append(row["option_price_open"] - row["option_price_close"])
             elif row["status"].upper() == "OPEN":
-                option_profit.append(row["option_price_open"] - row["current_option_price"])
+                if row["current_option_price"] is None:
+                    option_profit.append(row["option_price_open"])
+                else:
+                    option_profit.append(row["option_price_open"] - row["current_option_price"])
             else:
                 option_profit.append(None)
+            if option_profit[len(option_profit)-1] is not None:
+                option_profit[len(option_profit) - 1] = option_profit[len(option_profit)-1] * row["contracts"] * 100
+
+
         pd_list.insert(position, "Option Profit", option_profit)
         position += 1
         pd_list.insert(position, "Current Price", position_info["positions"]["current_option_price"])

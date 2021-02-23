@@ -92,6 +92,7 @@ class FinanceDB:
                          stock_price_close REAL,
                          option_expire_id INTEGER,
                          status TEXT,
+                         contracts INTEGER,
                          option_profit REAL,
                          stock_profit REAL,
                          UNIQUE( symbol, open_date, option_expire_id),
@@ -339,12 +340,12 @@ class FinanceDB:
         rows = np.array(cursor.fetchall())
         cursor.close()
         if len(rows) > 0:
-            df_data = rows[:, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]]  # stock_price_id, strike and bid
+            df_data = rows[:, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]]  # stock_price_id, strike and bid
             df = pd.DataFrame(data=df_data, columns=["position_id", "symbol", "put_call", "buy_sell",
                                                      "open_date", "option_price_open",
                                                      "close_date", "option_price_close",
                                                      "strike_price", "stock_price_open", "stock_price_close",
-                                                     "option_expire_id", "status"])
+                                                     "option_expire_id", "status", "contracts"])
             return df
         return pd.DataFrame()
 
