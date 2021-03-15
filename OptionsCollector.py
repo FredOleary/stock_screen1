@@ -78,7 +78,7 @@ def process_options():
             (configuration.get_configuration())['collector_end_time_pst'], 'US/Pacific')
         now = datetime.datetime.now()
 
-        if (start_time.time() <= now.time() <= end_time.time()) or force_reading is not None:
+        if (start_time.time() <= now.time() <= end_time.time()) or force_reading is True:
             if symbol is not None:
                 symbols = [{"symbol":symbol}]
             else:

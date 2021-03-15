@@ -5,15 +5,15 @@ class OptionsScreenerWatch:
             {"symbol": "QQQ", "name": "Invesco QQQ"},
             {"symbol": "MAR", "name": "Marriot"},
             {"symbol": "TSLA", "name": "Tesla Motor"},
-            {"symbol": "T", "name": "AT&T"},
-            {"symbol": "VZ", "name": "Verizon"},
+            {"symbol": "SNAP", "name": "Snap Corp"},
+            {"symbol": "WORK", "name": "Slack Technologies"},
             {"symbol": "AMD", "name": "Advanced Micro Devices"},
             {"symbol": "LITE", "name": "Lumentum technologies"},
             {"symbol": "INTC", "name": "Intel Corporation"},
             {"symbol": "QCOM", "name": "Qualcomm Inc"},
             {"symbol": "BLNK", "name": "Blink Charging Co"},
             {"symbol": "PCG", "name": "PG&E Co"},
-            {"symbol": "NVDA", "name": "NVIDIA"},
+            {"symbol": "CSCO", "name": "Cisco Systems"},
             {"symbol": "SPWR", "name": "SunPower"}
         ]
 

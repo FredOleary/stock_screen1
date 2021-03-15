@@ -323,6 +323,7 @@ class FinanceDB:
             for row in rows:
                 self._delete_option(row[0])
             cursor.execute("DELETE FROM stocks where symbol = ?", (symbol,))
+            self.connection.commit()
             cursor.close()
 
     def _delete_option(self, expire_id):

@@ -489,11 +489,12 @@ class ChartOptions:
 
         ax = fig.add_subplot(111)
         OTM_strikes = strike_options.loc[strike_options['inTheMoney'] == False]
-        strike_prices = OTM_strikes["strike"]
-        bid_prices = OTM_strikes["bid"]
-        ask_prices = OTM_strikes["ask"]
+        count = 30
+        strike_prices = (OTM_strikes["strike"])[:count]
+        bid_prices = (OTM_strikes["bid"])[:count]
+        ask_prices = (OTM_strikes["ask"])[:count]
 
-        x = np.arange(len(OTM_strikes))  # the label locations
+        x = np.arange(len(strike_prices))  # the label locations
         width = 0.35  # the width of the bars
 
         rects1 = ax.bar(x - width / 2, bid_prices, width, label='Bid')

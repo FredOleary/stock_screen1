@@ -53,7 +53,7 @@ class ListPositions(object):
         self.options_db = options_db
         self.top = tki.Toplevel(ListPositions.root)
         self.top.geometry('1300x300')
-        self.top.grab_set()
+        # self.top.grab_set()
 
         frm = tki.Frame(self.top, borderwidth=4, relief='ridge')
         frm.pack(fill='both', expand=True)
@@ -102,7 +102,7 @@ class ListPositions(object):
                     option_profit.append(row["option_price_open"] - row["current_option_price"])
             else:
                 option_profit.append(None)
-            if option_profit[len(option_profit)-1] is not None:
+            if option_profit[len(option_profit)-1] is not None and row["contracts"] is not None:
                 option_profit[len(option_profit) - 1] = option_profit[len(option_profit)-1] * row["contracts"] * 100
 
 
