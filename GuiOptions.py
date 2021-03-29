@@ -563,7 +563,10 @@ class GuiOptions(tk.ttk.Frame):
             for index, row in df_positions.iterrows():
                 expire_date = self.options_db.get_expire_date_from_id(row["option_expire_id"]).strftime('%Y-%m-%d')
                 expire_date_list.append(expire_date)
-                option = web.get_options_for_symbol_and_expiration(row["symbol"], expire_date)
+                if row["status"] == "OPEN":
+                    option = web.get_options_for_symbol_and_expiration(row["symbol"], expire_date)
+                else:
+                    option = None
                 if bool(option) and pd.isnull(row["close_date"]):
                     # If the position is closed, we don't care what the current prices are
                     current_stock_price_list.append(option["current_value"])

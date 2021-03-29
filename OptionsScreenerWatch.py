@@ -10,7 +10,7 @@ class OptionsScreenerWatch:
             {"symbol": "AMD", "name": "Advanced Micro Devices"},
             {"symbol": "LITE", "name": "Lumentum technologies"},
             {"symbol": "INTC", "name": "Intel Corporation"},
-            {"symbol": "QCOM", "name": "Qualcomm Inc"},
+            {"symbol": "TSM", "name": "Taiwan semiconductor"},
             {"symbol": "BLNK", "name": "Blink Charging Co"},
             {"symbol": "PCG", "name": "PG&E Co"},
             {"symbol": "CSCO", "name": "Cisco Systems"},
