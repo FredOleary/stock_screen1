@@ -123,4 +123,7 @@ def convert_time_str_to_datetime(time_str: str, tz: str) -> datetime.datetime:
 
 def calculate_variance(series: np.ndarray) -> float:
     series_no_nans = series[~pd.isnull(series)]
-    return round(float(np.var(series_no_nans)), 2)
+    norm = np.linalg.norm(series_no_nans)
+    norm_series = series_no_nans/norm
+    # return round(float(np.var(norm_series)), 7)*1000
+    return round(float(np.var(norm_series) *1000), 4)
