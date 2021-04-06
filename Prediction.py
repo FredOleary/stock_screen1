@@ -50,10 +50,13 @@ class Prediction:
         df = self.__load_series_from_db()
         day_list = self.__process_to_days(df)
         day_ndarray = self.__process_day_list(day_list)
-        train_data_normalized = self.__train_data(day_ndarray, TEST_DATA_SIZE)
-        self.__train_or_load_model(train_data_normalized)
-        last_day_predictions, next_day_predictions = self.__create_predictions(FUTURE_COUNT)
-        return last_day_predictions, next_day_predictions
+        if len(day_ndarray) > 0:
+            train_data_normalized = self.__train_data(day_ndarray, TEST_DATA_SIZE)
+            self.__train_or_load_model(train_data_normalized)
+            last_day_predictions, next_day_predictions = self.__create_predictions(FUTURE_COUNT)
+            return last_day_predictions, next_day_predictions
+        else:
+            return None, None
 
     def __load_series_from_db(self) -> pd.DataFrame:
         df = self.db.get_strike_data_for_expiration(self.expiration_key, self.strike, self.put_call)
