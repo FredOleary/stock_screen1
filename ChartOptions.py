@@ -543,8 +543,8 @@ class ChartOptions:
         OTM_strikes = strike_options.loc[strike_options['inTheMoney'] == False]
         count = 30
         strike_prices = (OTM_strikes["strike"])[:count]
-        delta_prices = (OTM_strikes["delta"])[:count]
-        theta_prices = (OTM_strikes["theta"])[:count]
+        delta_prices = list(map(lambda x: round(x,3), ((OTM_strikes["delta"])[:count])))
+        theta_prices = list(map(lambda x: round(x,3), ((OTM_strikes["theta"])[:count])))
 
         x = np.arange(len(strike_prices))  # the label locations
         width = 0.35  # the width of the bars
