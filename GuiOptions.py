@@ -172,6 +172,12 @@ class GuiOptions(tk.ttk.Frame):
                 self.status_var.set("No data available")
 
     def create_current_bid_ask_chart(self, event=None):
+        self.create_current_bar_chart(bid_ask=True)
+
+    def create_current_delta_theta_chart(self, event=None):
+        self.create_current_bar_chart(bid_ask=False)
+
+    def create_current_bar_chart(self, bid_ask:bool):
         self.close_button.focus_force()
         self.status_var.set("Creating Bid/Ask...")
         self.update()
@@ -189,13 +195,22 @@ class GuiOptions(tk.ttk.Frame):
             option = web.get_options_for_symbol_and_expiration(self.symbol_var.get(), expire_date, put_call="CALL")
             success = False
             if bool(option) and type(option["options_chain"]["calls"]) == pd.DataFrame:
-                success = chart.create_bid_ask_bar_chart(fig,
-                                                         self.symbol_var.get(),
-                                                         self.options_db.get_name_for_symbol(self.symbol_var.get()),
-                                                         row["expire_date"],
-                                                         option["current_value"],
-                                                         option["options_chain"]["calls"],
-                                                         put_call="CALL")
+                if bid_ask is True:
+                    success = chart.create_bid_ask_bar_chart(fig,
+                                                             self.symbol_var.get(),
+                                                             self.options_db.get_name_for_symbol(self.symbol_var.get()),
+                                                             row["expire_date"],
+                                                             option["current_value"],
+                                                             option["options_chain"]["calls"],
+                                                             put_call="CALL")
+                else:
+                    success = chart.create_delta_theta_bar_chart(fig,
+                                                             self.symbol_var.get(),
+                                                             self.options_db.get_name_for_symbol(self.symbol_var.get()),
+                                                             row["expire_date"],
+                                                             option["current_value"],
+                                                             option["options_chain"]["calls"],
+                                                             put_call="CALL")
 
             if success:
                 self.show_figure(canvas)
@@ -418,7 +433,8 @@ class GuiOptions(tk.ttk.Frame):
             self.positions_menu.entryconfig("Add", state="disabled")
             self.chart_menu.entryconfig("Surface", state="disabled")
             self.chart_menu.entryconfig("Line", state="disabled")
-            self.chart_menu.entryconfig("Current bid/ask", state="disabled")
+            self.chart_menu.entryconfig("OTM Current bid/ask", state="disabled")
+            self.chart_menu.entryconfig("OTM Current delta/theta", state="disabled")
             self.chart_menu.entryconfig("Strike/Profit", state="disabled")
             self.chart_menu.entryconfig("Normalized Strike/Metrics", state="disabled")
             self.chart_menu.entryconfig("Strike Bid/Ask/Last", state="disabled")
@@ -428,7 +444,8 @@ class GuiOptions(tk.ttk.Frame):
             self.positions_menu.entryconfig("Add", state="normal")
             self.chart_menu.entryconfig("Surface", state="normal")
             self.chart_menu.entryconfig("Line", state="normal")
-            self.chart_menu.entryconfig("Current bid/ask", state="normal")
+            self.chart_menu.entryconfig("OTM Current bid/ask", state="normal")
+            self.chart_menu.entryconfig("OTM Current delta/theta", state="normal")
 
             if not self.strike_var.get():
                 # self.strike_chart_button.config(state='disabled')
@@ -645,7 +662,8 @@ class GuiOptions(tk.ttk.Frame):
         self.chart_menu = tk.Menu(self.menu_bar, tearoff=0)
         self.chart_menu.add_command(label="Surface", command=self.create_surface_chart)
         self.chart_menu.add_command(label="Line", command=self.create_line_chart)
-        self.chart_menu.add_command(label="Current bid/ask", command=self.create_current_bid_ask_chart)
+        self.chart_menu.add_command(label="OTM Current bid/ask", command=self.create_current_bid_ask_chart)
+        self.chart_menu.add_command(label="OTM Current delta/theta", command=self.create_current_delta_theta_chart)
         self.chart_menu.add_command(label="Strike/Profit", command=self.create_strike_profit_chart)
         self.chart_menu.add_command(label="Normalized Strike/Metrics", command=self.create_strike_metrics_chart)
         self.chart_menu.add_command(label="Strike Bid/Ask/Last", command=self.create_bid_ask_chart)
