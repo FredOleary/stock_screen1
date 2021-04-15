@@ -14,7 +14,9 @@ class OptionsScreenerWatch:
             {"symbol": "BLNK", "name": "Blink Charging Co"},
             {"symbol": "PCG", "name": "PG&E Co"},
             {"symbol": "CSCO", "name": "Cisco Systems"},
-            {"symbol": "SPWR", "name": "SunPower"}
+            {"symbol": "SPWR", "name": "SunPower"},
+            {"symbol": "NVDA", "name": "NVidia"},
+            {"symbol": "SNAP", "name": "Snap Corp"}
         ]
 
     def get_companies(self):
