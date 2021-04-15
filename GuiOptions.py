@@ -578,10 +578,14 @@ class GuiOptions(tk.ttk.Frame):
             current_stock_price_list = []
             current_option_price_list = []
             for index, row in df_positions.iterrows():
-                expire_date = self.options_db.get_expire_date_from_id(row["option_expire_id"]).strftime('%Y-%m-%d')
-                expire_date_list.append(expire_date)
+                expire_date = self.options_db.get_expire_date_from_id(row["option_expire_id"])
+                if expire_date is not None:
+                    expire_date_str = expire_date.strftime('%Y-%m-%d')
+                else:
+                    expire_date_str = "N/A"
+                expire_date_list.append(expire_date_str)
                 if row["status"] == "OPEN":
-                    option = web.get_options_for_symbol_and_expiration(row["symbol"], expire_date)
+                    option = web.get_options_for_symbol_and_expiration(row["symbol"], expire_date_str)
                 else:
                     option = None
                 if bool(option) and pd.isnull(row["close_date"]):

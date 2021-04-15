@@ -65,6 +65,9 @@ class CallScreenerOptions(tk.ttk.Frame):
         self.call_screener_frame = None
         self.popup_expiration_menu = None
         self.expiration_var = tk.StringVar(self)
+        self.otm_strike_var = tk.StringVar(self)
+        self.otm_list = ["15%", "5%", "ATM", "10%", "20%"]
+
         self.request_queue = Queue()
         self.response_queue = Queue()
 
@@ -79,11 +82,14 @@ class CallScreenerOptions(tk.ttk.Frame):
         self.companies = OptionsScreenerWatch()
         self.init_table()
         self.clear_expiration_menu()
+        self.clear_otm_strike_menu()
         config = OptionsConfiguration()
         look_a_heads = (config.get_configuration())["screener_look_ahead_expirations"]
         expiration_list = self.get_expirations(look_a_heads)
         self.update_expiration(expiration_list)
         self.expiration_var.set(expiration_list[0])
+        self.update_otm_strike(self.otm_list)
+        self.otm_strike_var.set(self.otm_list[0])
         self.temp()
         self.options_fetch = OptionsFetch(self.request_queue, self.response_queue, self.logger)
         self.options_fetch.start()
@@ -147,10 +153,21 @@ class CallScreenerOptions(tk.ttk.Frame):
 
         self.pack(fill=tk.BOTH, expand=True)
 
+        start_date_label = tk.ttk.Label(tool_bar, text="Expiration")
+        start_date_label.pack(side=tk.LEFT, padx=5, pady=5)
+
         self.popup_expiration_menu = tk.OptionMenu(tool_bar, self.expiration_var, *{''})
         self.popup_expiration_menu.config(width=16)
         self.popup_expiration_menu.pack(side=tk.LEFT, padx=5, pady=5)
         self.expiration_var.trace('w', self.expiration_var_selection_event)
+
+        otm_label = tk.ttk.Label(tool_bar, text="OTM Strike delta (%)")
+        otm_label.pack(side=tk.LEFT, padx=10, pady=5)
+
+        self.otm_strike_menu = tk.OptionMenu(tool_bar, self.otm_strike_var, *{''})
+        self.otm_strike_menu.config(width=10)
+        self.otm_strike_menu.pack(side=tk.LEFT, padx=5, pady=5)
+        self.otm_strike_var.trace('w', self.otm_strike_var_selection_event)
 
         self.close_button = tk.ttk.Button(tool_bar, text="Close")
         self.close_button.pack(side=tk.RIGHT, padx=5, pady=5)
@@ -189,29 +206,50 @@ class CallScreenerOptions(tk.ttk.Frame):
         self.expiration_var.set('')
         self.popup_expiration_menu['menu'].delete(0, 'end')
 
+    def clear_otm_strike_menu(self):
+        self.otm_strike_var.set('')
+        self.otm_strike_menu['menu'].delete(0, 'end')
+
     def update_expiration(self, choices):
         for choice in choices:
             self.popup_expiration_menu['menu'].add_command(label=choice,
                                                            command=lambda value=choice: self.expiration_var.set(value))
 
+    def update_otm_strike(self, choices):
+        for choice in choices:
+            self.otm_strike_menu['menu'].add_command(label=choice,
+                                                           command=lambda value=choice: self.otm_strike_var.set(value))
+
     # noinspection PyUnusedLocal
     def expiration_var_selection_event(self, *args):
         if self.expiration_var.get():
-            with self.request_queue.mutex:
-                self.request_queue.queue.clear()
-            for index, row in self.data_frame.iterrows():
-                self.data_frame.loc[row['Ticker'], 'Stock Price'] = math.nan
-                self.data_frame.loc[row['Ticker'], 'Strike'] = math.nan
-                self.data_frame.loc[row['Ticker'], '%(OTM)'] = math.nan
-                self.data_frame.loc[row['Ticker'], 'Bid'] = math.nan
-                self.data_frame.loc[row['Ticker'], 'Ask'] = math.nan
-                self.data_frame.loc[row['Ticker'], 'ROI(%) (Bid/Stock Price)'] = math.nan
-                self.data_frame.loc[row['Ticker'], 'Annual ROI(%)'] = math.nan
-                self.data_frame.loc[row['Ticker'], 'Implied Volatility'] = math.nan
-                self.data_frame.loc[row['Ticker'], 'Delta'] = math.nan
-                self.data_frame.loc[row['Ticker'], 'Theta'] = math.nan
-
+            self.__clear_table()
             self.table.redraw()
+
+    def otm_strike_var_selection_event(self, *args):
+        if self.otm_strike_var.get():
+            numbers = [i for i in self.otm_strike_var.get() if i.isdigit()]
+            strings =  [str(integer) for integer in numbers]
+            a_string = "".join(strings)
+            self.otm_percent = 0 if len(a_string) == 0 else int(a_string)
+            self.__clear_table()
+            self.table.redraw()
+
+    def __clear_table(self):
+        with self.request_queue.mutex:
+            self.request_queue.queue.clear()
+
+        for index, row in self.data_frame.iterrows():
+            self.data_frame.loc[row['Ticker'], 'Stock Price'] = math.nan
+            self.data_frame.loc[row['Ticker'], 'Strike'] = math.nan
+            self.data_frame.loc[row['Ticker'], '%(OTM)'] = math.nan
+            self.data_frame.loc[row['Ticker'], 'Bid'] = math.nan
+            self.data_frame.loc[row['Ticker'], 'Ask'] = math.nan
+            self.data_frame.loc[row['Ticker'], 'ROI(%) (Bid/Stock Price)'] = math.nan
+            self.data_frame.loc[row['Ticker'], 'Annual ROI(%)'] = math.nan
+            self.data_frame.loc[row['Ticker'], 'Implied Volatility'] = math.nan
+            self.data_frame.loc[row['Ticker'], 'Delta'] = math.nan
+            self.data_frame.loc[row['Ticker'], 'Theta'] = math.nan
 
     def update_options(self):
         if self.request_queue.empty():
@@ -243,7 +281,7 @@ class CallScreenerOptions(tk.ttk.Frame):
             display_chain = response['options']
             if bool(display_chain):
                 company = display_chain["ticker"]
-                best_index, otm_percent_actual = self.find_best_index(display_chain, 15)
+                best_index, otm_percent_actual = self.find_best_index(display_chain, self.otm_percent)
                 if best_index != -1:
                     self.data_frame.loc[company, 'Stock Price'] = display_chain['current_value']
                     self.data_frame.loc[company, 'Strike'] = display_chain['options_chain']['calls'].iloc[best_index][

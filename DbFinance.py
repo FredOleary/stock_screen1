@@ -368,7 +368,10 @@ class FinanceDB:
         cursor.execute("SELECT expire_date FROM option_expire where option_expire_id = ?", (option_expire_id,))
         rows = cursor.fetchall()
         cursor.close()
-        return rows[0][0]
+        if len(rows) > 0:
+            return rows[0][0]
+        else:
+            return None
 
     def add_position(self, symbol: str, put_call: str, buy_sell: str, open_date: datetime.datetime,
                      option_price_open: float, strike_price: float, option_expire_id: int) -> None:
