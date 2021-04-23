@@ -154,26 +154,32 @@ class APITradier(APIOptions):
                             option_dict['change'].append(option['change'])
                         option_dict['volume'].append(option['volume'])
                         option_dict['openInterest'].append(option['open_interest'])
-                        if 'greeks' in option and 'mid_iv' in option['greeks']:
-                            option_dict['impliedVolatility'].append(option['greeks']['mid_iv'])
-                        else:
-                            option_dict['impliedVolatility'].append(None)
-                        if 'greeks' in option and 'delta' in option['greeks']:
-                            option_dict['delta'].append(option['greeks']['delta'])
-                        else:
-                            option_dict['delta'].append(None)
-                        if 'greeks' in option and 'gamma' in option['greeks']:
-                            option_dict['gamma'].append(option['greeks']['gamma'])
-                        else:
-                            option_dict['gamma'].append(None)
-                        if 'greeks' in option and 'theta' in option['greeks']:
-                            option_dict['theta'].append(option['greeks']['theta'])
-                        else:
-                            option_dict['theta'].append(None)
-                        if 'greeks' in option and 'vega' in option['greeks']:
-                            option_dict['vega'].append(option['greeks']['vega'])
-                        else:
-                            option_dict['vega'].append(None)
+                        try:
+                            if 'greeks' in option and 'mid_iv' in option['greeks']:
+                                option_dict['impliedVolatility'].append(option['greeks']['mid_iv'])
+                            else:
+                                option_dict['impliedVolatility'].append(None)
+                            if 'greeks' in option and 'delta' in option['greeks']:
+                                option_dict['delta'].append(option['greeks']['delta'])
+                            else:
+                                option_dict['delta'].append(None)
+                            if 'greeks' in option and 'gamma' in option['greeks']:
+                                option_dict['gamma'].append(option['greeks']['gamma'])
+                            else:
+                                option_dict['gamma'].append(None)
+                            if 'greeks' in option and 'theta' in option['greeks']:
+                                option_dict['theta'].append(option['greeks']['theta'])
+                            else:
+                                option_dict['theta'].append(None)
+                            if 'greeks' in option and 'vega' in option['greeks']:
+                                option_dict['vega'].append(option['greeks']['vega'])
+                            else:
+                                option_dict['vega'].append(None)
+
+                        except Exception as err:
+                            if self.logger is not None:
+                                self.logger.error(err.args[0])
+                                self.logger.info(option)
 
                         in_the_money = True
                         if put_call == 'CALL':
