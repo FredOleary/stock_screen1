@@ -2,6 +2,7 @@ import requests
 import Utilities
 import datetime
 import pandas as pd
+import math
 from APIOptions import APIOptions
 
 
@@ -154,27 +155,28 @@ class APITradier(APIOptions):
                             option_dict['change'].append(option['change'])
                         option_dict['volume'].append(option['volume'])
                         option_dict['openInterest'].append(option['open_interest'])
+                        # option['greeks'] = None #REMOVE
                         try:
-                            if 'greeks' in option and 'mid_iv' in option['greeks']:
+                            if 'greeks' in option and option['greeks'] is not None and 'mid_iv' in option['greeks']:
                                 option_dict['impliedVolatility'].append(option['greeks']['mid_iv'])
                             else:
-                                option_dict['impliedVolatility'].append(None)
-                            if 'greeks' in option and 'delta' in option['greeks']:
+                                option_dict['impliedVolatility'].append(math.nan)
+                            if 'greeks' in option and option['greeks'] is not None and 'delta' in option['greeks']:
                                 option_dict['delta'].append(option['greeks']['delta'])
                             else:
-                                option_dict['delta'].append(None)
-                            if 'greeks' in option and 'gamma' in option['greeks']:
+                                option_dict['delta'].append(math.nan)
+                            if 'greeks' in option and option['greeks'] is not None and 'gamma' in option['greeks']:
                                 option_dict['gamma'].append(option['greeks']['gamma'])
                             else:
-                                option_dict['gamma'].append(None)
-                            if 'greeks' in option and 'theta' in option['greeks']:
+                                option_dict['gamma'].append(math.nan)
+                            if 'greeks' in option and option['greeks'] is not None and 'theta' in option['greeks']:
                                 option_dict['theta'].append(option['greeks']['theta'])
                             else:
-                                option_dict['theta'].append(None)
-                            if 'greeks' in option and 'vega' in option['greeks']:
+                                option_dict['theta'].append(math.nan)
+                            if 'greeks' in option and option['greeks'] is not None and 'vega' in option['greeks']:
                                 option_dict['vega'].append(option['greeks']['vega'])
                             else:
-                                option_dict['vega'].append(None)
+                                option_dict['vega'].append(math.nan)
 
                         except Exception as err:
                             if self.logger is not None:
