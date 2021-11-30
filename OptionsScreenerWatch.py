@@ -16,7 +16,8 @@ class OptionsScreenerWatch:
             {"symbol": "CSCO", "name": "Cisco Systems"},
             {"symbol": "SPWR", "name": "SunPower"},
             {"symbol": "NVDA", "name": "NVidia"},
-            {"symbol": "SNAP", "name": "Snap Corp"}
+            {"symbol": "SNAP", "name": "Snap Corp"},
+            {"symbol": "RIVN", "name": "Rivian"}
         ]
 
     def get_companies(self):

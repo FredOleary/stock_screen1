@@ -99,7 +99,7 @@ class GuiOptions(tk.ttk.Frame):
         answer = tk.messagebox.askquestion("Delete Option", message, icon='warning')
         if answer == 'yes':
             option_expire_id = -1
-            if self.expiration_var.get():
+            if self.expiration_var.get() != ' ':
                 row = self.shadow_expiration[self.expiration_var.get()]
                 option_expire_id = row['option_expire_id']
             symbol = self.symbol_var.get()
@@ -360,7 +360,7 @@ class GuiOptions(tk.ttk.Frame):
             self.update_expiration(expiration_set)
 
     def clear_expiration_menu(self):
-        self.expiration_var.set('')
+        self.expiration_var.set(' ')
         self.popup_expiration_menu['menu'].delete(0, 'end')
 
     def update_expiration(self, choices):
@@ -369,7 +369,7 @@ class GuiOptions(tk.ttk.Frame):
                                                            command=lambda value=choice: self.expiration_var.set(value))
 
     def clear_strike_menu(self):
-        self.strike_var.set('')
+        self.strike_var.set(' ')
         self.popup_strike_menu['menu'].delete(0, 'end')
 
     def update_strike(self, choices):
@@ -380,7 +380,7 @@ class GuiOptions(tk.ttk.Frame):
     # noinspection PyUnusedLocal
     def expiration_var_selection_event(self, *args):
         self.update_chart_button_enable()
-        if not self.expiration_var.get():
+        if not self.expiration_var.get() or self.expiration_var.get() == ' ':
             pass
         else:
             self.clear_strike_menu()

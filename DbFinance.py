@@ -307,11 +307,14 @@ class FinanceDB:
                            [option_expire_id, put_call])
         rows = cursor.fetchall()
         np_rows = np.array(rows)
-        df_data = np_rows[:, 0]  # strike
-        df_column_values = ["strike"]
-        df = pd.DataFrame(data=df_data, columns=df_column_values)
-        cursor.close()
-        return df
+        if len(rows) > 0:
+            df_data = np_rows[:, 0]  # strike
+            df_column_values = ["strike"]
+            df = pd.DataFrame(data=df_data, columns=df_column_values)
+            cursor.close()
+            return df
+        else:
+            return(pd.DataFrame())
 
     def delete_options(self, symbol: str, option_expire_id: int) -> None:
         if option_expire_id != -1:

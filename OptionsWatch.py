@@ -2,6 +2,7 @@ class OptionsWatch:
     """ Declares the companies to be watched """
     def __init__(self):
         self.options_list = [
+            {"symbol": "RIVN", "name": "Rivian"},
             {"symbol": "MAR", "name": "Marriot"},
             {"symbol": "TSLA", "name": "Tesla Motor"},
             {"symbol": "NVDA", "name": "NVida Corporation"},
